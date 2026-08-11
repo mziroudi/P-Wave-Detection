@@ -78,8 +78,8 @@ python scripts/download_stead.py --test-only
 # 2) Visualize with ObsPy / Matplotlib
 python scripts/visualize_waveforms.py
 
-# 3) Build labeled 10 s windows (Noise vs Earthquake)
-python scripts/prepare_windows.py --max-earthquake 3000 --max-noise 3000
+# 3) Build labeled 10 s windows (Noise vs Earthquake; event-level split by default)
+python scripts/prepare_windows.py --max-earthquake 3000 --max-noise 3000 --group-by event
 
 # 4) Train classifier 1D CNN
 python scripts/train.py --epochs 12 --batch-size 64
@@ -144,22 +144,38 @@ python scripts/prepare_windows.py --source official \
 src/
   stead_io.py         # STEAD subsample + official loaders
   windows.py          # 10 s window extraction (classify + regress)
+  splits.py           # event/station leakage-safe splits
+  trace_ids.py        # station/event IDs from STEAD names
   dataset.py          # PyTorch Dataset + cache I/O
   model.py            # 1D CNN classifier + P-arrival regressor
   sliding_window.py   # continuous inference + alert rule
+  sta_lta.py          # classical STA/LTA P-picker baseline
+  ringbuffer.py       # local ringbuffer for low-latency replay
+  seed.py             # global RNG seeding
 scripts/
   download_stead.py
   download_continuous.py
   visualize_waveforms.py
-  prepare_windows.py
+  prepare_windows.py          # --group-by event|station|window
   prepare_regression.py
   train.py
   train_regression.py
-  evaluate.py
+  evaluate.py                 # ROC-AUC + PR-AUC
+  evaluate_imbalanced.py      # high noise:eq ratio + PR-AUC
+  evaluate_false_alarms.py    # FAR / 24 h on continuous data
   evaluate_regression.py
+  benchmark_sta_lta.py        # STA/LTA vs CNN MAE + latency
+  export_onnx.py
+  benchmark_latency.py
+  cross_validate.py           # 5-fold group CV
   continuous_inference.py
-  live_stream.py
+  live_stream.py              # FDSN poll or --demo-replay ringbuffer
   predict.py
+tests/
+  test_windows.py
+  test_sta_lta.py
+  test_ringbuffer.py
+.github/workflows/ci.yml
 notebooks/
   explore_stead.ipynb
   PWave_Detection_Colab.ipynb
@@ -188,51 +204,82 @@ See `artifacts/confusion_matrix.png` and `artifacts/roc_curve.png`.
 
 **Continuous sliding window:** Ridgecrest M7.1 hour at CI.CLC — see `artifacts/continuous/sliding_window_probs.png`. Expect false alarms on raw continuous data; tune `--threshold` / `--consecutive`.
 
+## Production evaluation (roadmap)
+
+These commands implement the production gaps below. Prefer **event-level** splits for new training runs:
+
+```bash
+# Leakage-safe windows (default --group-by event)
+python scripts/prepare_windows.py --prefer-split test --group-by event
+python scripts/prepare_regression.py --prefer-split test --group-by event
+
+# Imbalanced eval + PR-AUC (ratio capped by available noise windows)
+python scripts/evaluate_imbalanced.py --noise-to-eq 100
+
+# False alarms / 24 h on continuous waveform
+python scripts/evaluate_false_alarms.py --threshold 0.85 --consecutive 3
+
+# STA/LTA baseline vs CNN regressor
+python scripts/benchmark_sta_lta.py
+
+# Latency + ONNX
+python scripts/export_onnx.py
+python scripts/benchmark_latency.py
+
+# 5-fold event-grouped CV (mean ± std)
+python scripts/cross_validate.py --n-splits 5 --epochs 5
+
+# Unit tests / CI locally
+pytest -q
+```
+
 ## Limitations & Production Roadmap
 
-This project successfully demonstrates an end-to-end ML pipeline for seismic detection. However, transitioning this from a functional prototype to a production-grade Earthquake Early Warning (EEW) system requires addressing several critical gaps in data integrity, realistic evaluation, and engineering rigor.
+This project demonstrates an end-to-end ML pipeline for seismic detection. The items below were the remaining gaps for production-minded EEW work — **status reflects what this repo now implements**.
 
-### 1. Data Provenance & Leakage Control (Critical)
+### 1. Data Provenance & Leakage Control (Critical) — addressed in-repo
 
-**Current State:** The model is trained on a 3rd-party Zenodo subsample of STEAD, and the train/test split is performed randomly at the window level.
+**Was:** Random window-level train/test split on a Zenodo STEAD subsample.
 
-**The Problem:** STEAD contains multiple traces from the same earthquake recorded at different stations. Randomly splitting windows risks data leakage, where the model sees data from the same seismic event in both training and test sets, artificially inflating the 97.4% accuracy. Furthermore, the Zenodo subsample's curation criteria are unverified.
+**Now:**
+- `prepare_windows.py` / `prepare_regression.py` default to **`--group-by event`** (also supports `station` or legacy `window`).
+- Splits assert **zero event/station overlap** across train/val/test (`src/splits.py`).
+- Official STEAD chunk path remains available via `--source official --csv … --hdf5 …` when you have the ~14 GB files locally (download still blocked in many environments).
 
-**Production Fix:** Migrate to the official 14GB STEAD chunks. Implement event-level and station-level train/test splitting to guarantee zero overlap of seismic events across splits.
+### 2. Realistic Class Imbalance & False Alarms (Critical) — addressed in-repo
 
-### 2. Realistic Class Imbalance & False Alarms (Critical)
+**Was:** Balanced 50/50 accuracy / ROC-AUC only.
 
-**Current State:** Evaluation uses an artificially balanced 50/50 dataset (3,000 noise vs. 3,000 earthquakes).
+**Now:**
+- `evaluate.py` reports **PR-AUC** alongside ROC-AUC.
+- `evaluate_imbalanced.py` re-evaluates at a high noise:earthquake ratio and writes `artifacts/imbalanced/`.
+- `evaluate_false_alarms.py` reports **false alarms per 24 h** on continuous MiniSEED (`artifacts/false_alarms/`).
 
-**The Problem:** Real seismic streams are 99%+ noise. A 97.4% accuracy on a balanced dataset tells us nothing about the real-world False Positive Rate (FPR), which is the primary bottleneck in EEW systems. A model that cries wolf is operationally useless.
+### 3. Benchmarking Against Classical Baselines — addressed in-repo
 
-**Production Fix:** Re-evaluate on highly imbalanced datasets (e.g., 1000:1 noise-to-event ratio). Shift the primary evaluation metric from ROC-AUC to Precision-Recall AUC (PR-AUC). Report metrics as False Alarms per 24 hours of continuous noise data.
+**Was:** CNN regression MAE (~230 ms) with no classical comparison.
 
-### 3. Benchmarking Against Classical Baselines
+**Now:** `src/sta_lta.py` + `scripts/benchmark_sta_lta.py` compare STA/LTA vs CNN MAE and per-window latency on the same test set (`artifacts/baselines/`).
 
-**Current State:** The P-wave arrival regression achieves an MAE of ~230ms.
+### 4. Inference Latency & Edge Deployment — addressed in-repo
 
-**The Problem:** This metric exists in a vacuum. In seismology, deep learning models must be benchmarked against classical algorithms—specifically STA/LTA (Short-Term Average / Long-Term Average)—which are computationally cheap and widely deployed. State-of-the-art pickers (e.g., EQTransformer, PhaseNet) operate at <50ms MAE.
+**Was:** Unmeasured inference latency; HTTP FDSN polling only.
 
-**Production Fix:** Implement a standard STA/LTA algorithm on the same test set and compare MAE and latency against the 1D CNN. The deep learning model must justify its complexity by outperforming STA/LTA.
+**Now:**
+- `export_onnx.py` exports `models/seismic_cnn1d.onnx`.
+- `benchmark_latency.py` reports PyTorch CPU and ONNX Runtime ms/window (`artifacts/latency/`).
+- `live_stream.py --demo-replay` feeds a **local ringbuffer** (`src/ringbuffer.py`) for sub-second offline inference without HTTP. Live FDSN remains a lagged archive poll (not SeedLink).
 
-### 4. Inference Latency & Edge Deployment
+### 5. Software Engineering Rigor — addressed in-repo
 
-**Current State:** The core value proposition of EEW is "beating the S-wave," but model inference latency is unmeasured. The live stream script polls via requests, introducing network overhead.
+**Was:** Single run, unpinned deps, no windowing tests.
 
-**Production Fix:** Benchmark inference time per 10s window on standard CPUs and edge devices (e.g., Raspberry Pi). Optimize via ONNX export or TensorRT. Replace the HTTP poller with a true streaming protocol (WebSocket/UDP) or a local ringbuffer to guarantee sub-second latency.
-
-### 5. Software Engineering Rigor
-
-**Current State:** Single training run, no variance reporting, unpinned dependencies, and no unit tests for the windowing logic.
-
-**Production Fix:**
-
-- Set global random seeds (PyTorch, NumPy, Python `random`).
-- Perform 5-fold cross-validation and report standard deviation.
-- Pin all dependencies in `requirements.txt` (e.g., `torch==2.0.1`).
-- Add unit tests specifically for `windows.py` to prevent off-by-one indexing errors in P-pick alignment.
-- Implement GitHub Actions CI to ensure the pipeline runs from scratch on a clean environment.
+**Now:**
+- Global seeds via `src/seed.py` (used by train / prepare / eval scripts).
+- `cross_validate.py` — **5-fold group CV** with mean ± std.
+- Pinned `requirements.txt`.
+- Unit tests for window P-alignment, STA/LTA, and ringbuffer under `tests/`.
+- GitHub Actions CI (`.github/workflows/ci.yml`) runs `pytest` on every push/PR.
 
 ## Citation
 

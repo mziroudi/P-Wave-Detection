@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "cursor/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Unit tests
+        run: pytest -q
+
+      - name: Import pipeline modules
+        run: |
+          python - <<'PY'
+          from src.windows import build_window_arrays
+          from src.splits import group_train_val_test_indices
+          from src.sta_lta import pick_p_sta_lta
+          from src.model import SeismicCNN1D
+          from src.seed import set_global_seed
+          set_global_seed(0)
+          print("imports_ok", SeismicCNN1D())
+          PY
