@@ -147,6 +147,19 @@ Trained on ~7k STEAD-subsample windows (10 s × 3 channels), 12 epochs, CPU:
 
 See `artifacts/confusion_matrix.png` and `artifacts/roc_curve.png`.
 
+## Limitations & Next Steps
+
+The current model is a solid portfolio baseline, but it is not yet an Early Earthquake Warning (EEW) system. The gaps below are the path from a classifier demo to senior-level work:
+
+1. **Continuous Data Testing**  
+   The current model evaluates pre-cut 10-second windows. The next step is to build a streaming pipeline that takes 24 hours of continuous data from a USGS station and slides a 10-second window over it in real-time to test for false positive rates.
+
+2. **P-Wave Arrival Time Prediction**  
+   Instead of just saying "Earthquake/No Earthquake", the next iteration will use regression to predict the exact millisecond the P-wave arrives, which is the true goal of Early Warning Systems.
+
+3. **Inference Speed**  
+   An EEW system requires sub-second latency. Future work will benchmark the model's inference time on edge devices (like a Raspberry Pi) to ensure alerts can be sent faster than the S-wave travels.
+
 ## Citation
 
 ```bibtex
