@@ -62,7 +62,6 @@ Or paste this in a fresh Colab cell first:
 ```python
 !git clone https://github.com/mziroudi/P-Wave-Detection.git
 %cd P-Wave-Detection
-!git checkout cursor/p-wave-detection-5a2b
 !pip install -q h5py matplotlib seaborn obspy scikit-learn tqdm requests
 !python scripts/download_stead.py --test-only
 !python scripts/prepare_windows.py --prefer-split test
