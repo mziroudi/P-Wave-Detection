@@ -41,7 +41,8 @@ def main() -> None:
         input_names=["waveform"],
         output_names=["logits"],
         dynamic_axes={"waveform": {0: "batch"}, "logits": {0: "batch"}},
-        opset_version=args.opset,
+        opset_version=max(args.opset, 18),
+        dynamo=False,
     )
     print(f"[ok] wrote {args.out}")
 

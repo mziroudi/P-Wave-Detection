@@ -183,26 +183,40 @@ notebooks/
 
 ## Results (demo run)
 
-Trained on ~7k STEAD-subsample windows (10 s × 3 channels), 12 epochs, CPU:
+### Classifier (event-level split)
+
+Retrained with `--group-by event` (zero event overlap across splits), 8 epochs, CPU:
 
 | Metric | Value |
 |--------|-------|
-| Test accuracy | **97.4%** |
-| Macro F1 | **0.974** |
-| ROC-AUC (earthquake) | **0.996** |
+| Test accuracy | **97.8%** |
+| Macro F1 | **0.978** |
+| ROC-AUC | **0.995** |
+| PR-AUC | **0.992** |
+| 5-fold group CV accuracy | **0.958 ± 0.018** |
+| 5-fold group CV ROC-AUC | **0.990 ± 0.003** |
 
-```text
-              precision    recall  f1-score   support
-       noise     0.9694    0.9789    0.9741       712
-  earthquake     0.9784    0.9686    0.9734       700
-    accuracy                         0.9738      1412
-```
+Imbalanced stress test (~40:1 noise:eq, pooled windows): PR-AUC ≈ **0.92**, FPR ≈ **1.1%** — see `artifacts/imbalanced/`.
 
-See `artifacts/confusion_matrix.png` and `artifacts/roc_curve.png`.
+Continuous FAR on the Ridgecrest hour (includes a real M7.1 — treat as upper bound): see `artifacts/false_alarms/false_alarm_metrics.json`.
 
-**P-arrival regression (demo):** test MAE ≈ **23 samples (~230 ms)** at 100 Hz — see `artifacts/regression/p_arrival_regression.png`.
+### P-arrival regression vs STA/LTA
 
-**Continuous sliding window:** Ridgecrest M7.1 hour at CI.CLC — see `artifacts/continuous/sliding_window_probs.png`. Expect false alarms on raw continuous data; tune `--threshold` / `--consecutive`.
+| Method | Test MAE |
+|--------|----------|
+| STA/LTA (STA=0.25 s, LTA=2.0 s) | **~234 ms** |
+| CNN regressor | **~237 ms** |
+
+On this STEAD-window setup the classical picker is competitive; the CNN still wins on raw inference throughput after ONNX export. See `artifacts/baselines/sta_lta_vs_cnn.png`.
+
+### Latency (CPU, batch=1)
+
+| Backend | ~ms / 10 s window |
+|---------|-------------------|
+| PyTorch | ~85 ms (cold/variable) |
+| ONNX Runtime | **~0.3–0.6 ms** |
+
+See `artifacts/latency/latency_benchmark.json` and `models/seismic_cnn1d.onnx`.
 
 ## Production evaluation (roadmap)
 

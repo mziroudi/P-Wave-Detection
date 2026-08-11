@@ -29,22 +29,35 @@ from src.seed import set_global_seed
 from src.utils import ARTIFACTS_DIR, CLASS_NAMES, MODELS_DIR, WINDOWS_DIR, ensure_dirs
 
 
-def _subsample_imbalanced(
+def _load_pooled(windows_dir: Path) -> tuple[np.ndarray, np.ndarray]:
+    xs, ys = [], []
+    for split in ("train", "val", "test"):
+        d = windows_dir / split
+        if (d / "X.npy").exists():
+            x, y = load_window_cache(d)
+            xs.append(x)
+            ys.append(y)
+    if not xs:
+        raise SystemExit(f"No window caches under {windows_dir}")
+    return np.concatenate(xs, axis=0), np.concatenate(ys, axis=0)
+
+
+def _build_imbalanced(
     x: np.ndarray,
     y: np.ndarray,
     noise_to_eq: float,
     seed: int,
+    max_eq: int | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     rng = np.random.default_rng(seed)
     eq_idx = np.where(y == 1)[0]
     noise_idx = np.where(y == 0)[0]
     if len(eq_idx) == 0 or len(noise_idx) == 0:
         raise SystemExit("Need both noise and earthquake samples for imbalanced eval")
-    n_eq = len(eq_idx)
+    n_eq = len(eq_idx) if max_eq is None else min(len(eq_idx), max_eq)
+    pick_eq = rng.choice(eq_idx, size=n_eq, replace=False)
     n_noise_target = int(min(len(noise_idx), max(1, round(n_eq * noise_to_eq))))
-    # If we don't have enough noise in the split, keep all noise and note the ratio.
     pick_noise = rng.choice(noise_idx, size=n_noise_target, replace=False)
-    pick_eq = eq_idx
     idx = np.concatenate([pick_noise, pick_eq])
     rng.shuffle(idx)
     return x[idx], y[idx]
@@ -54,6 +67,13 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Imbalanced / PR-AUC evaluation")
     parser.add_argument("--checkpoint", type=Path, default=MODELS_DIR / "seismic_cnn1d_best.pt")
     parser.add_argument("--windows-dir", type=Path, default=WINDOWS_DIR)
+    parser.add_argument(
+        "--pool-splits",
+        action="store_true",
+        default=True,
+        help="Pool train+val+test so noise:eq ratios above the test-set balance are possible.",
+    )
+    parser.add_argument("--no-pool-splits", action="store_false", dest="pool_splits")
     parser.add_argument("--split", choices=["val", "test"], default="test")
     parser.add_argument(
         "--noise-to-eq",
@@ -61,6 +81,7 @@ def main() -> None:
         default=100.0,
         help="Target noise:earthquake ratio (capped by available noise windows).",
     )
+    parser.add_argument("--max-eq", type=int, default=50, help="Cap earthquake count for extreme ratios.")
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--out-dir", type=Path, default=ARTIFACTS_DIR / "imbalanced")
@@ -70,11 +91,17 @@ def main() -> None:
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    x, y = load_window_cache(args.windows_dir / args.split)
-    x_eval, y_eval = _subsample_imbalanced(x, y, args.noise_to_eq, args.seed)
+    if args.pool_splits:
+        x, y = _load_pooled(args.windows_dir)
+        source = "pooled_train_val_test"
+    else:
+        x, y = load_window_cache(args.windows_dir / args.split)
+        source = args.split
+
+    x_eval, y_eval = _build_imbalanced(x, y, args.noise_to_eq, args.seed, max_eq=args.max_eq)
     actual_ratio = float((y_eval == 0).sum() / max((y_eval == 1).sum(), 1))
     print(
-        f"[info] eval windows={len(y_eval)} "
+        f"[info] source={source} eval windows={len(y_eval)} "
         f"noise={(y_eval==0).sum()} eq={(y_eval==1).sum()} ratio={actual_ratio:.1f}:1"
     )
 
@@ -121,7 +148,7 @@ def main() -> None:
     plt.close(fig)
 
     metrics = {
-        "split": args.split,
+        "source": source,
         "requested_noise_to_eq": args.noise_to_eq,
         "actual_noise_to_eq": actual_ratio,
         "n_noise": int((y_true == 0).sum()),
@@ -132,6 +159,10 @@ def main() -> None:
         "confusion_matrix": cm.tolist(),
         "classification_report": report,
         "checkpoint": str(args.checkpoint),
+        "note": (
+            "Pooling train+val+test increases available noise for ratio stress tests; "
+            "it is not a leakage-free holdout. Prefer event-held-out noise for production reporting."
+        ),
     }
     (args.out_dir / "imbalanced_metrics.json").write_text(json.dumps(metrics, indent=2))
     print(f"[ok] {pr_path}")

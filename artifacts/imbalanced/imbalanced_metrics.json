@@ -1,0 +1,23 @@
+{
+  "source": "pooled_train_val_test",
+  "requested_noise_to_eq": 40.0,
+  "actual_noise_to_eq": 40.0,
+  "n_noise": 2000,
+  "n_earthquake": 50,
+  "pr_auc": 0.9180008939258343,
+  "roc_auc": 0.99643,
+  "false_positive_rate": 0.011,
+  "confusion_matrix": [
+    [
+      1978,
+      22
+    ],
+    [
+      1,
+      49
+    ]
+  ],
+  "classification_report": "              precision    recall  f1-score   support\n\n       noise     0.9995    0.9890    0.9942      2000\n  earthquake     0.6901    0.9800    0.8099        50\n\n    accuracy                         0.9888      2050\n   macro avg     0.8448    0.9845    0.9021      2050\nweighted avg     0.9919    0.9888    0.9897      2050\n",
+  "checkpoint": "/workspace/models/seismic_cnn1d_best.pt",
+  "note": "Pooling train+val+test increases available noise for ratio stress tests; it is not a leakage-free holdout. Prefer event-held-out noise for production reporting."
+}

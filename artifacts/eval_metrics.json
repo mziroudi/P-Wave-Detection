@@ -1,16 +1,17 @@
 {
   "split": "test",
   "checkpoint": "/workspace/models/seismic_cnn1d_best.pt",
-  "roc_auc": 0.99642455858748,
+  "roc_auc": 0.9952752921617525,
+  "pr_auc": 0.9918674222600288,
   "confusion_matrix": [
     [
-      697,
-      15
+      400,
+      8
     ],
     [
-      22,
-      678
+      10,
+      391
     ]
   ],
-  "classification_report": "              precision    recall  f1-score   support\n\n       noise     0.9694    0.9789    0.9741       712\n  earthquake     0.9784    0.9686    0.9734       700\n\n    accuracy                         0.9738      1412\n   macro avg     0.9739    0.9738    0.9738      1412\nweighted avg     0.9738    0.9738    0.9738      1412\n"
+  "classification_report": "              precision    recall  f1-score   support\n\n       noise     0.9756    0.9804    0.9780       408\n  earthquake     0.9799    0.9751    0.9775       401\n\n    accuracy                         0.9778       809\n   macro avg     0.9778    0.9777    0.9777       809\nweighted avg     0.9778    0.9778    0.9777       809\n"
 }

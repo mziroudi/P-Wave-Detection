@@ -113,6 +113,8 @@ def main() -> None:
         n_windows = 0
         recent_probs.clear()
         for start in range(0, wave.shape[1], hop):
+            if args.max_iterations and n_windows >= args.max_iterations:
+                break
             chunk = wave[:, start : start + hop]
             if chunk.shape[1] == 0:
                 break

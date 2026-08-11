@@ -1,0 +1,13 @@
+{
+  "mseed": "/workspace/data/continuous/ridgecrest_m71_2019.mseed",
+  "duration_seconds": 3600.01,
+  "duration_hours": 1.0000027777777778,
+  "n_windows": 3591,
+  "n_alert_events": 153,
+  "false_alarms_per_hour": 152.99957500118055,
+  "false_alarms_per_24h": 3671.989800028333,
+  "window_positive_rate": 0.4341409078251183,
+  "threshold": 0.85,
+  "consecutive": 3,
+  "note": "Ridgecrest hour includes a real M7.1; treat FAR as an upper bound unless --exclude-event-start is used to crop to a noise-only segment."
+}

@@ -24,8 +24,11 @@ venv/
 models/*.pt
 models/*.pth
 models/*.onnx
+models/*.onnx.data
 !models/seismic_cnn1d_best.pt
 !models/seismic_cnn1d_regressor_best.pt
+!models/seismic_cnn1d.onnx
+!models/seismic_cnn1d.onnx.json
 !artifacts/.gitkeep
 !models/.gitkeep
 

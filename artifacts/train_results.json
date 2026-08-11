@@ -1,99 +1,71 @@
 {
   "device": "cpu",
-  "epochs": 12,
-  "seconds": 34.35,
+  "epochs": 8,
+  "seconds": 14.33,
   "parameters": 110466,
   "history": [
     {
       "epoch": 1,
-      "train_loss": 0.32350964307785035,
-      "val_loss": 0.21509312529046581,
-      "val_accuracy": 0.9351415094339622,
-      "val_f1_macro": 0.9351262631531363
+      "train_loss": 0.3978099908736702,
+      "val_loss": 0.32361898417315205,
+      "val_accuracy": 0.8677685950413223,
+      "val_f1_macro": 0.8663421874730319
     },
     {
       "epoch": 2,
-      "train_loss": 0.1818349642554919,
-      "val_loss": 0.16586865583118401,
-      "val_accuracy": 0.9457547169811321,
-      "val_f1_macro": 0.9457544152412738
+      "train_loss": 0.22659729398890124,
+      "val_loss": 0.15624579534796643,
+      "val_accuracy": 0.9442148760330579,
+      "val_f1_macro": 0.944214637894602
     },
     {
       "epoch": 3,
-      "train_loss": 0.1357840923468272,
-      "val_loss": 0.11755734386871446,
-      "val_accuracy": 0.9658018867924528,
-      "val_f1_macro": 0.9658018392358257
+      "train_loss": 0.1615450187529948,
+      "val_loss": 0.12912497102967962,
+      "val_accuracy": 0.9669421487603306,
+      "val_f1_macro": 0.966905982905983
     },
     {
       "epoch": 4,
-      "train_loss": 0.11164245491226514,
-      "val_loss": 0.1555306892490612,
-      "val_accuracy": 0.9599056603773585,
-      "val_f1_macro": 0.9598554171238256
+      "train_loss": 0.13043278986445675,
+      "val_loss": 0.10634105240017915,
+      "val_accuracy": 0.9669421487603306,
+      "val_f1_macro": 0.9669415842767618
     },
     {
       "epoch": 5,
-      "train_loss": 0.10363028345008692,
-      "val_loss": 0.12140011112644987,
-      "val_accuracy": 0.9669811320754716,
-      "val_f1_macro": 0.9669662483652857
+      "train_loss": 0.1153148175783602,
+      "val_loss": 0.0977313222963948,
+      "val_accuracy": 0.9710743801652892,
+      "val_f1_macro": 0.971050158079125
     },
     {
       "epoch": 6,
-      "train_loss": 0.08400965293248494,
-      "val_loss": 0.10134174699350348,
-      "val_accuracy": 0.972877358490566,
-      "val_f1_macro": 0.9728727939325408
+      "train_loss": 0.11037122183096122,
+      "val_loss": 0.10442741182132446,
+      "val_accuracy": 0.9731404958677686,
+      "val_f1_macro": 0.9731211045466002
     },
     {
       "epoch": 7,
-      "train_loss": 0.0792633381485939,
-      "val_loss": 0.14065076936176926,
-      "val_accuracy": 0.9610849056603774,
-      "val_f1_macro": 0.9610805217635597
+      "train_loss": 0.11070602839759729,
+      "val_loss": 0.06653903230778442,
+      "val_accuracy": 0.981404958677686,
+      "val_f1_macro": 0.9813985267428206
     },
     {
       "epoch": 8,
-      "train_loss": 0.07734512267013391,
-      "val_loss": 0.11968507884808306,
-      "val_accuracy": 0.964622641509434,
-      "val_f1_macro": 0.9645942816424691
-    },
-    {
-      "epoch": 9,
-      "train_loss": 0.0656687995356818,
-      "val_loss": 0.10866163023044619,
-      "val_accuracy": 0.972877358490566,
-      "val_f1_macro": 0.9728709827731297
-    },
-    {
-      "epoch": 10,
-      "train_loss": 0.06515284011761348,
-      "val_loss": 0.08866943563071061,
-      "val_accuracy": 0.972877358490566,
-      "val_f1_macro": 0.9728773207732411
-    },
-    {
-      "epoch": 11,
-      "train_loss": 0.047883801274001596,
-      "val_loss": 0.1035281717601531,
-      "val_accuracy": 0.9693396226415094,
-      "val_f1_macro": 0.9693287037037037
-    },
-    {
-      "epoch": 12,
-      "train_loss": 0.04075986056899031,
-      "val_loss": 0.0943223266326383,
-      "val_accuracy": 0.9764150943396226,
-      "val_f1_macro": 0.9764129951045839
+      "train_loss": 0.09131749347666276,
+      "val_loss": 0.061125864852065885,
+      "val_accuracy": 0.9855371900826446,
+      "val_f1_macro": 0.9855267486020155
     }
   ],
   "test": {
-    "loss": 0.07085202097175142,
-    "accuracy": 0.9737960339943342,
-    "f1_macro": 0.9737912884779292
+    "loss": 0.06840593738041643,
+    "accuracy": 0.9777503090234858,
+    "f1_macro": 0.977747555012225
   },
-  "classification_report": "              precision    recall  f1-score   support\n\n       noise     0.9694    0.9789    0.9741       712\n  earthquake     0.9784    0.9686    0.9734       700\n\n    accuracy                         0.9738      1412\n   macro avg     0.9739    0.9738    0.9738      1412\nweighted avg     0.9738    0.9738    0.9738      1412\n",
+  "classification_report": "              precision    recall  f1-score   support\n\n       noise     0.9756    0.9804    0.9780       408\n  earthquake     0.9799    0.9751    0.9775       401\n\n    accuracy                         0.9778       809\n   macro avg     0.9778    0.9777    0.9777       809\nweighted avg     0.9778    0.9778    0.9777       809\n",
   "best_checkpoint": "/workspace/models/seismic_cnn1d_best.pt"
 }

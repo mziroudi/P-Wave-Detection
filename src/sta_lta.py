@@ -9,13 +9,15 @@ from src.utils import SAMPLE_RATE_HZ, WINDOW_SAMPLES
 
 def classic_sta_lta(
     trace: np.ndarray,
-    sta_samples: int = 50,
-    lta_samples: int = 500,
+    sta_samples: int = 25,
+    lta_samples: int = 200,
     eps: float = 1e-9,
 ) -> np.ndarray:
     """
-    Recursive-style STA/LTA ratio on a 1-D trace (ObsPy-compatible defaults @ 100 Hz:
-    STA=0.5 s, LTA=5 s).
+    Cumulative-sum STA/LTA ratio on a 1-D trace.
+
+    Defaults are tuned for **10 s @ 100 Hz** windows (STA≈0.25 s, LTA≈2.0 s).
+    Classic ObsPy longer LTA (5 s) is a poor fit inside a 10 s analysis window.
     """
     x = np.asarray(trace, dtype=np.float64)
     if x.ndim != 1:
@@ -36,9 +38,9 @@ def classic_sta_lta(
 
 def pick_p_sta_lta(
     window: np.ndarray,
-    sta_samples: int = 50,
-    lta_samples: int = 500,
-    threshold: float = 3.5,
+    sta_samples: int = 25,
+    lta_samples: int = 200,
+    threshold: float = 2.0,
     channel: int = 2,
 ) -> float:
     """
@@ -72,9 +74,9 @@ def pick_p_sta_lta(
 def evaluate_sta_lta_mae(
     x: np.ndarray,
     y_true: np.ndarray,
-    sta_samples: int = 50,
-    lta_samples: int = 500,
-    threshold: float = 3.5,
+    sta_samples: int = 25,
+    lta_samples: int = 200,
+    threshold: float = 2.0,
     sample_rate: float = SAMPLE_RATE_HZ,
 ) -> dict:
     """Compare STA/LTA picks to labeled P offsets; return MAE in samples and ms."""

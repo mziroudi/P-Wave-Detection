@@ -1,0 +1,28 @@
+{
+  "host": "cursor",
+  "platform": "Linux-6.12.94+-x86_64-with-glibc2.39",
+  "processor": "x86_64",
+  "python": "3.12.3",
+  "torch": "2.13.0+cpu",
+  "batch_size": 1,
+  "window_samples": 1000,
+  "pytorch_cpu": {
+    "runs": 100,
+    "mean_ms": 85.41300713006422,
+    "std_ms": 33.09481771509662,
+    "p50_ms": 98.85082649998367,
+    "p95_ms": 104.04403980019197,
+    "min_ms": 0.5051250009273645,
+    "max_ms": 108.11909100084449
+  },
+  "onnxruntime_cpu": {
+    "runs": 100,
+    "mean_ms": 0.5588779000572686,
+    "std_ms": 1.0262482963758166,
+    "p50_ms": 0.2608755003166152,
+    "p95_ms": 4.2720904003545,
+    "min_ms": 0.24085699988063425,
+    "max_ms": 4.350351000539376
+  },
+  "onnx_path": "/workspace/models/seismic_cnn1d.onnx"
+}
