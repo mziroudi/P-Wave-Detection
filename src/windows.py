@@ -20,6 +20,7 @@ class WindowExample:
     label: int
     trace_name: str
     start_sample: int
+    p_offset: float | None = None  # P sample index within the window (regression target)
 
 
 def _normalize(window: np.ndarray, eps: float = 1e-6) -> np.ndarray:
@@ -75,6 +76,7 @@ def extract_earthquake_window(
         label=LABEL_EARTHQUAKE,
         trace_name=record.name,
         start_sample=start,
+        p_offset=float(p - start),
     )
 
 
@@ -171,6 +173,54 @@ def build_window_arrays(
             "trace_name": ex.trace_name,
             "start_sample": ex.start_sample,
             "label": ex.label,
+            "p_offset": ex.p_offset,
+        }
+        for ex in examples
+    ]
+    return x, y, meta
+
+
+def build_regression_arrays(
+    records: list[TraceRecord],
+    seed: int = 42,
+    max_windows: int | None = None,
+    pre_p_samples: int = 200,
+    n_jitters: int = 3,
+) -> tuple[np.ndarray, np.ndarray, list[dict]]:
+    """
+    Build earthquake-only windows for P-arrival regression.
+
+    Target `y` is the P-wave sample index within each 10 s window
+    (convertible to ms via y * 1000 / SAMPLE_RATE_HZ).
+    """
+    rng = np.random.default_rng(seed)
+    examples: list[WindowExample] = []
+    eq_records = [r for r in records if r.category != "noise" and r.p_arrival is not None]
+
+    for rec in eq_records:
+        for _ in range(n_jitters):
+            ex = extract_earthquake_window(rec, pre_p_samples=pre_p_samples, rng=rng)
+            if ex is None or ex.p_offset is None:
+                continue
+            if not (0 <= ex.p_offset < WINDOW_SAMPLES):
+                continue
+            examples.append(ex)
+
+    if max_windows is not None and len(examples) > max_windows:
+        rng.shuffle(examples)
+        examples = examples[:max_windows]
+
+    rng.shuffle(examples)
+    if not examples:
+        raise RuntimeError("No regression windows extracted — need earthquake traces with P picks.")
+
+    x = np.stack([ex.waveform for ex in examples], axis=0).astype(np.float32)
+    y = np.array([ex.p_offset for ex in examples], dtype=np.float32)
+    meta = [
+        {
+            "trace_name": ex.trace_name,
+            "start_sample": ex.start_sample,
+            "p_offset": ex.p_offset,
         }
         for ex in examples
     ]

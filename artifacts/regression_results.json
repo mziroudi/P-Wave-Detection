@@ -1,0 +1,110 @@
+{
+  "task": "p_arrival_regression",
+  "device": "cpu",
+  "seconds": 42.07,
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 60.53929656854197,
+      "val_loss": 29.431142897832963,
+      "val_mae_samples": 29.925960540771484,
+      "val_mae_ms": 299.25960540771484,
+      "val_rmse_samples": 37.000885009765625
+    },
+    {
+      "epoch": 2,
+      "train_loss": 35.79251396756212,
+      "val_loss": 23.877577136811755,
+      "val_mae_samples": 24.37497901916504,
+      "val_mae_ms": 243.7497901916504,
+      "val_rmse_samples": 28.539321899414062
+    },
+    {
+      "epoch": 3,
+      "train_loss": 33.95051851673286,
+      "val_loss": 24.966054262433733,
+      "val_mae_samples": 25.461563110351562,
+      "val_mae_ms": 254.61563110351562,
+      "val_rmse_samples": 31.048145294189453
+    },
+    {
+      "epoch": 4,
+      "train_loss": 32.5535677324824,
+      "val_loss": 23.17297087169829,
+      "val_mae_samples": 23.666337966918945,
+      "val_mae_ms": 236.66337966918945,
+      "val_rmse_samples": 28.00663948059082
+    },
+    {
+      "epoch": 5,
+      "train_loss": 31.658776361802044,
+      "val_loss": 26.38186879839216,
+      "val_mae_samples": 26.87840461730957,
+      "val_mae_ms": 268.7840461730957,
+      "val_rmse_samples": 33.34406661987305
+    },
+    {
+      "epoch": 6,
+      "train_loss": 31.56597328186035,
+      "val_loss": 22.76380150204613,
+      "val_mae_samples": 23.260560989379883,
+      "val_mae_ms": 232.60560989379883,
+      "val_rmse_samples": 28.1569766998291
+    },
+    {
+      "epoch": 7,
+      "train_loss": 31.865308909055564,
+      "val_loss": 23.467079326084683,
+      "val_mae_samples": 23.962881088256836,
+      "val_mae_ms": 239.62881088256836,
+      "val_rmse_samples": 28.270244598388672
+    },
+    {
+      "epoch": 8,
+      "train_loss": 30.962626734501175,
+      "val_loss": 22.666565704345704,
+      "val_mae_samples": 23.16453742980957,
+      "val_mae_ms": 231.6453742980957,
+      "val_rmse_samples": 27.668315887451172
+    },
+    {
+      "epoch": 9,
+      "train_loss": 30.566586790966387,
+      "val_loss": 22.667607861473446,
+      "val_mae_samples": 23.161523818969727,
+      "val_mae_ms": 231.61523818969727,
+      "val_rmse_samples": 27.93204689025879
+    },
+    {
+      "epoch": 10,
+      "train_loss": 30.19220916042809,
+      "val_loss": 22.95019166128976,
+      "val_mae_samples": 23.446880340576172,
+      "val_mae_ms": 234.46880340576172,
+      "val_rmse_samples": 27.677139282226562
+    },
+    {
+      "epoch": 11,
+      "train_loss": 29.690689032418387,
+      "val_loss": 22.765893736339752,
+      "val_mae_samples": 23.260095596313477,
+      "val_mae_ms": 232.60095596313477,
+      "val_rmse_samples": 28.574079513549805
+    },
+    {
+      "epoch": 12,
+      "train_loss": 29.08356638996541,
+      "val_loss": 22.612242180960518,
+      "val_mae_samples": 23.110193252563477,
+      "val_mae_ms": 231.10193252563477,
+      "val_rmse_samples": 28.304595947265625
+    }
+  ],
+  "test": {
+    "loss": 22.361206065586636,
+    "mae_samples": 22.858036041259766,
+    "mae_ms": 228.58036041259766,
+    "rmse_samples": 27.592927932739258
+  },
+  "best_checkpoint": "/workspace/models/seismic_cnn1d_regressor_best.pt"
+}

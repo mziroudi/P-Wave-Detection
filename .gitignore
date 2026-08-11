@@ -20,11 +20,12 @@ venv/
 # Jupyter
 .ipynb_checkpoints/
 
-# Models — keep the demo checkpoint; ignore other weights
+# Models — keep demo checkpoints; ignore other weights
 models/*.pt
 models/*.pth
 models/*.onnx
 !models/seismic_cnn1d_best.pt
+!models/seismic_cnn1d_regressor_best.pt
 !artifacts/.gitkeep
 !models/.gitkeep
 

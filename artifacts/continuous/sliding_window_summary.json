@@ -1,0 +1,12 @@
+{
+  "mseed": "/workspace/data/continuous/ridgecrest_m71_2019.mseed",
+  "checkpoint": "/workspace/models/seismic_cnn1d_best.pt",
+  "n_windows": 3591,
+  "threshold": 0.85,
+  "consecutive": 3,
+  "raw_threshold_crossings": 795,
+  "n_alerts": 570,
+  "max_prob": 0.999005138874054,
+  "mean_prob": 0.3762013614177704,
+  "origin_offset_s": 600.0
+}
