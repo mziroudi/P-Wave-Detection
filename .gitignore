@@ -39,3 +39,6 @@ models/*.onnx
 *.log
 runs/
 lightning_logs/
+
+# Reproducible diagnostic outputs (regenerate via scripts/diagnose_shortcut.py)
+artifacts/analysis/
