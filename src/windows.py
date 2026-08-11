@@ -1,0 +1,177 @@
+"""Extract labeled 10-second windows for Noise vs Earthquake classification."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+import numpy as np
+
+from src.stead_io import TraceRecord
+from src.utils import (
+    LABEL_EARTHQUAKE,
+    LABEL_NOISE,
+    WINDOW_SAMPLES,
+)
+
+
+@dataclass
+class WindowExample:
+    waveform: np.ndarray  # (channels, samples)
+    label: int
+    trace_name: str
+    start_sample: int
+
+
+def _normalize(window: np.ndarray, eps: float = 1e-6) -> np.ndarray:
+    """Per-channel z-score normalization."""
+    mean = window.mean(axis=-1, keepdims=True)
+    std = window.std(axis=-1, keepdims=True)
+    return (window - mean) / (std + eps)
+
+
+def _to_channels_first(wave: np.ndarray) -> np.ndarray:
+    """STEAD stores (samples, channels); model expects (channels, samples)."""
+    if wave.ndim != 2:
+        raise ValueError(f"Expected 2D waveform, got shape {wave.shape}")
+    if wave.shape[0] < wave.shape[1]:
+        # already channels-first-ish; still transpose if channels last
+        pass
+    if wave.shape[1] in (1, 3) and wave.shape[0] > wave.shape[1]:
+        return wave.T.astype(np.float32)
+    return wave.astype(np.float32)
+
+
+def extract_earthquake_window(
+    record: TraceRecord,
+    pre_p_samples: int = 200,
+    rng: np.random.Generator | None = None,
+) -> WindowExample | None:
+    """
+    Build a 10 s window that includes the P-wave onset.
+
+    Default: start ~2 s before P so the window captures the first tremor
+    (P) while ideally remaining before the destructive S-wave when possible.
+    """
+    if record.p_arrival is None:
+        return None
+    wave = record.waveform
+    n = wave.shape[0]
+    if n < WINDOW_SAMPLES:
+        return None
+
+    p = int(record.p_arrival)
+    # Jitter start a little so the model does not memorize a fixed P index.
+    jitter = 0
+    if rng is not None:
+        jitter = int(rng.integers(-50, 51))
+    start = p - pre_p_samples + jitter
+    start = max(0, min(start, n - WINDOW_SAMPLES))
+    end = start + WINDOW_SAMPLES
+    window = _to_channels_first(wave[start:end])
+    if window.shape[-1] != WINDOW_SAMPLES:
+        return None
+    return WindowExample(
+        waveform=_normalize(window),
+        label=LABEL_EARTHQUAKE,
+        trace_name=record.name,
+        start_sample=start,
+    )
+
+
+def extract_noise_window(
+    record: TraceRecord,
+    rng: np.random.Generator,
+) -> WindowExample | None:
+    wave = record.waveform
+    n = wave.shape[0]
+    if n < WINDOW_SAMPLES:
+        return None
+    start = int(rng.integers(0, n - WINDOW_SAMPLES + 1))
+    window = _to_channels_first(wave[start : start + WINDOW_SAMPLES])
+    return WindowExample(
+        waveform=_normalize(window),
+        label=LABEL_NOISE,
+        trace_name=record.name,
+        start_sample=start,
+    )
+
+
+def extract_pre_p_noise_window(
+    record: TraceRecord,
+    rng: np.random.Generator,
+    margin: int = 50,
+) -> WindowExample | None:
+    """Optional hard negative: noise taken from before the P arrival on EQ traces."""
+    if record.p_arrival is None:
+        return None
+    wave = record.waveform
+    max_end = int(record.p_arrival) - margin
+    if max_end < WINDOW_SAMPLES:
+        return None
+    start = int(rng.integers(0, max_end - WINDOW_SAMPLES + 1))
+    window = _to_channels_first(wave[start : start + WINDOW_SAMPLES])
+    return WindowExample(
+        waveform=_normalize(window),
+        label=LABEL_NOISE,
+        trace_name=record.name,
+        start_sample=start,
+    )
+
+
+def build_window_arrays(
+    records: list[TraceRecord],
+    seed: int = 42,
+    include_pre_p_noise: bool = True,
+    max_per_class: int | None = None,
+) -> tuple[np.ndarray, np.ndarray, list[dict]]:
+    """
+    Convert TraceRecords into (X, y, meta).
+
+    X shape: (N, 3, WINDOW_SAMPLES)
+    y shape: (N,)
+    """
+    rng = np.random.default_rng(seed)
+    examples: list[WindowExample] = []
+
+    eq_records = [r for r in records if r.category != "noise"]
+    noise_records = [r for r in records if r.category == "noise"]
+
+    for rec in eq_records:
+        ex = extract_earthquake_window(rec, rng=rng)
+        if ex is not None:
+            examples.append(ex)
+        if include_pre_p_noise:
+            neg = extract_pre_p_noise_window(rec, rng=rng)
+            if neg is not None:
+                examples.append(neg)
+
+    for rec in noise_records:
+        ex = extract_noise_window(rec, rng=rng)
+        if ex is not None:
+            examples.append(ex)
+
+    if max_per_class is not None:
+        by_label: dict[int, list[WindowExample]] = {LABEL_NOISE: [], LABEL_EARTHQUAKE: []}
+        for ex in examples:
+            by_label[ex.label].append(ex)
+        trimmed: list[WindowExample] = []
+        for label, items in by_label.items():
+            rng.shuffle(items)
+            trimmed.extend(items[:max_per_class])
+        examples = trimmed
+
+    rng.shuffle(examples)
+    if not examples:
+        raise RuntimeError("No windows extracted — check that STEAD files are present.")
+
+    x = np.stack([ex.waveform for ex in examples], axis=0).astype(np.float32)
+    y = np.array([ex.label for ex in examples], dtype=np.int64)
+    meta = [
+        {
+            "trace_name": ex.trace_name,
+            "start_sample": ex.start_sample,
+            "label": ex.label,
+        }
+        for ex in examples
+    ]
+    return x, y, meta

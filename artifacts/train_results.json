@@ -1,0 +1,99 @@
+{
+  "device": "cpu",
+  "epochs": 12,
+  "seconds": 34.35,
+  "parameters": 110466,
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.32350964307785035,
+      "val_loss": 0.21509312529046581,
+      "val_accuracy": 0.9351415094339622,
+      "val_f1_macro": 0.9351262631531363
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.1818349642554919,
+      "val_loss": 0.16586865583118401,
+      "val_accuracy": 0.9457547169811321,
+      "val_f1_macro": 0.9457544152412738
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.1357840923468272,
+      "val_loss": 0.11755734386871446,
+      "val_accuracy": 0.9658018867924528,
+      "val_f1_macro": 0.9658018392358257
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.11164245491226514,
+      "val_loss": 0.1555306892490612,
+      "val_accuracy": 0.9599056603773585,
+      "val_f1_macro": 0.9598554171238256
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.10363028345008692,
+      "val_loss": 0.12140011112644987,
+      "val_accuracy": 0.9669811320754716,
+      "val_f1_macro": 0.9669662483652857
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.08400965293248494,
+      "val_loss": 0.10134174699350348,
+      "val_accuracy": 0.972877358490566,
+      "val_f1_macro": 0.9728727939325408
+    },
+    {
+      "epoch": 7,
+      "train_loss": 0.0792633381485939,
+      "val_loss": 0.14065076936176926,
+      "val_accuracy": 0.9610849056603774,
+      "val_f1_macro": 0.9610805217635597
+    },
+    {
+      "epoch": 8,
+      "train_loss": 0.07734512267013391,
+      "val_loss": 0.11968507884808306,
+      "val_accuracy": 0.964622641509434,
+      "val_f1_macro": 0.9645942816424691
+    },
+    {
+      "epoch": 9,
+      "train_loss": 0.0656687995356818,
+      "val_loss": 0.10866163023044619,
+      "val_accuracy": 0.972877358490566,
+      "val_f1_macro": 0.9728709827731297
+    },
+    {
+      "epoch": 10,
+      "train_loss": 0.06515284011761348,
+      "val_loss": 0.08866943563071061,
+      "val_accuracy": 0.972877358490566,
+      "val_f1_macro": 0.9728773207732411
+    },
+    {
+      "epoch": 11,
+      "train_loss": 0.047883801274001596,
+      "val_loss": 0.1035281717601531,
+      "val_accuracy": 0.9693396226415094,
+      "val_f1_macro": 0.9693287037037037
+    },
+    {
+      "epoch": 12,
+      "train_loss": 0.04075986056899031,
+      "val_loss": 0.0943223266326383,
+      "val_accuracy": 0.9764150943396226,
+      "val_f1_macro": 0.9764129951045839
+    }
+  ],
+  "test": {
+    "loss": 0.07085202097175142,
+    "accuracy": 0.9737960339943342,
+    "f1_macro": 0.9737912884779292
+  },
+  "classification_report": "              precision    recall  f1-score   support\n\n       noise     0.9694    0.9789    0.9741       712\n  earthquake     0.9784    0.9686    0.9734       700\n\n    accuracy                         0.9738      1412\n   macro avg     0.9739    0.9738    0.9738      1412\nweighted avg     0.9738    0.9738    0.9738      1412\n",
+  "best_checkpoint": "/workspace/models/seismic_cnn1d_best.pt"
+}
