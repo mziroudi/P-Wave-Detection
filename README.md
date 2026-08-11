@@ -188,18 +188,51 @@ See `artifacts/confusion_matrix.png` and `artifacts/roc_curve.png`.
 
 **Continuous sliding window:** Ridgecrest M7.1 hour at CI.CLC — see `artifacts/continuous/sliding_window_probs.png`. Expect false alarms on raw continuous data; tune `--threshold` / `--consecutive`.
 
-## Limitations & Next Steps
+## Limitations & Production Roadmap
 
-The classifier on pre-cut STEAD windows is the baseline. This repo now also implements the senior-level follow-ons; remaining polish is noted below.
+This project successfully demonstrates an end-to-end ML pipeline for seismic detection. However, transitioning this from a functional prototype to a production-grade Earthquake Early Warning (EEW) system requires addressing several critical gaps in data integrity, realistic evaluation, and engineering rigor.
 
-1. **Continuous Data Testing** — **implemented** in `scripts/continuous_inference.py`  
-   Sliding 10 s windows over a 1-hour USGS/SCEDC recording (Ridgecrest M7.1 at CI.CLC), with probability traces and a consecutive-threshold alert rule to control false positives. Next: scale to a full 24-hour quiet stretch for a proper false-alarm rate study.
+### 1. Data Provenance & Leakage Control (Critical)
 
-2. **P-Wave Arrival Time Prediction** — **implemented** in `scripts/train_regression.py`  
-   Regression head predicts the P-wave sample index inside each 10 s window (millisecond-convertible). Next: joint multi-task training (detect + pick) and comparison against catalog picks on continuous data.
+**Current State:** The model is trained on a 3rd-party Zenodo subsample of STEAD, and the train/test split is performed randomly at the window level.
 
-3. **Inference Speed**  
-   An EEW system requires sub-second latency. Future work will benchmark the model's inference time on edge devices (like a Raspberry Pi) to ensure alerts can be sent faster than the S-wave travels. The live FDSN poller (`scripts/live_stream.py`) is the software-side streaming half of that goal.
+**The Problem:** STEAD contains multiple traces from the same earthquake recorded at different stations. Randomly splitting windows risks data leakage, where the model sees data from the same seismic event in both training and test sets, artificially inflating the 97.4% accuracy. Furthermore, the Zenodo subsample's curation criteria are unverified.
+
+**Production Fix:** Migrate to the official 14GB STEAD chunks. Implement event-level and station-level train/test splitting to guarantee zero overlap of seismic events across splits.
+
+### 2. Realistic Class Imbalance & False Alarms (Critical)
+
+**Current State:** Evaluation uses an artificially balanced 50/50 dataset (3,000 noise vs. 3,000 earthquakes).
+
+**The Problem:** Real seismic streams are 99%+ noise. A 97.4% accuracy on a balanced dataset tells us nothing about the real-world False Positive Rate (FPR), which is the primary bottleneck in EEW systems. A model that cries wolf is operationally useless.
+
+**Production Fix:** Re-evaluate on highly imbalanced datasets (e.g., 1000:1 noise-to-event ratio). Shift the primary evaluation metric from ROC-AUC to Precision-Recall AUC (PR-AUC). Report metrics as False Alarms per 24 hours of continuous noise data.
+
+### 3. Benchmarking Against Classical Baselines
+
+**Current State:** The P-wave arrival regression achieves an MAE of ~230ms.
+
+**The Problem:** This metric exists in a vacuum. In seismology, deep learning models must be benchmarked against classical algorithms—specifically STA/LTA (Short-Term Average / Long-Term Average)—which are computationally cheap and widely deployed. State-of-the-art pickers (e.g., EQTransformer, PhaseNet) operate at <50ms MAE.
+
+**Production Fix:** Implement a standard STA/LTA algorithm on the same test set and compare MAE and latency against the 1D CNN. The deep learning model must justify its complexity by outperforming STA/LTA.
+
+### 4. Inference Latency & Edge Deployment
+
+**Current State:** The core value proposition of EEW is "beating the S-wave," but model inference latency is unmeasured. The live stream script polls via requests, introducing network overhead.
+
+**Production Fix:** Benchmark inference time per 10s window on standard CPUs and edge devices (e.g., Raspberry Pi). Optimize via ONNX export or TensorRT. Replace the HTTP poller with a true streaming protocol (WebSocket/UDP) or a local ringbuffer to guarantee sub-second latency.
+
+### 5. Software Engineering Rigor
+
+**Current State:** Single training run, no variance reporting, unpinned dependencies, and no unit tests for the windowing logic.
+
+**Production Fix:**
+
+- Set global random seeds (PyTorch, NumPy, Python `random`).
+- Perform 5-fold cross-validation and report standard deviation.
+- Pin all dependencies in `requirements.txt` (e.g., `torch==2.0.1`).
+- Add unit tests specifically for `windows.py` to prevent off-by-one indexing errors in P-pick alignment.
+- Implement GitHub Actions CI to ensure the pipeline runs from scratch on a clean environment.
 
 ## Citation
 
