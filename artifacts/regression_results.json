@@ -1,110 +1,78 @@
 {
   "task": "p_arrival_regression",
   "device": "cpu",
-  "seconds": 42.07,
+  "seconds": 28.85,
   "history": [
     {
       "epoch": 1,
-      "train_loss": 60.53929656854197,
-      "val_loss": 29.431142897832963,
-      "val_mae_samples": 29.925960540771484,
-      "val_mae_ms": 299.25960540771484,
-      "val_rmse_samples": 37.000885009765625
+      "train_loss": 78.41232620295982,
+      "val_loss": 29.806117040103242,
+      "val_mae_samples": 30.3045711517334,
+      "val_mae_ms": 303.045711517334,
+      "val_rmse_samples": 36.98897933959961
     },
     {
       "epoch": 2,
-      "train_loss": 35.79251396756212,
-      "val_loss": 23.877577136811755,
-      "val_mae_samples": 24.37497901916504,
-      "val_mae_ms": 243.7497901916504,
-      "val_rmse_samples": 28.539321899414062
+      "train_loss": 38.108667502704606,
+      "val_loss": 26.142987622919772,
+      "val_mae_samples": 26.639392852783203,
+      "val_mae_ms": 266.39392852783203,
+      "val_rmse_samples": 31.659212112426758
     },
     {
       "epoch": 3,
-      "train_loss": 33.95051851673286,
-      "val_loss": 24.966054262433733,
-      "val_mae_samples": 25.461563110351562,
-      "val_mae_ms": 254.61563110351562,
-      "val_rmse_samples": 31.048145294189453
+      "train_loss": 35.97281301278607,
+      "val_loss": 25.07536731995258,
+      "val_mae_samples": 25.572925567626953,
+      "val_mae_ms": 255.72925567626953,
+      "val_rmse_samples": 31.105392456054688
     },
     {
       "epoch": 4,
-      "train_loss": 32.5535677324824,
-      "val_loss": 23.17297087169829,
-      "val_mae_samples": 23.666337966918945,
-      "val_mae_ms": 236.66337966918945,
-      "val_rmse_samples": 28.00663948059082
+      "train_loss": 34.7209728311872,
+      "val_loss": 24.996750975146735,
+      "val_mae_samples": 25.491260528564453,
+      "val_mae_ms": 254.91260528564453,
+      "val_rmse_samples": 30.11739730834961
     },
     {
       "epoch": 5,
-      "train_loss": 31.658776361802044,
-      "val_loss": 26.38186879839216,
-      "val_mae_samples": 26.87840461730957,
-      "val_mae_ms": 268.7840461730957,
-      "val_rmse_samples": 33.34406661987305
+      "train_loss": 33.639582438983,
+      "val_loss": 27.185012781988714,
+      "val_mae_samples": 27.68172836303711,
+      "val_mae_ms": 276.8172836303711,
+      "val_rmse_samples": 33.5782470703125
     },
     {
       "epoch": 6,
-      "train_loss": 31.56597328186035,
-      "val_loss": 22.76380150204613,
-      "val_mae_samples": 23.260560989379883,
-      "val_mae_ms": 232.60560989379883,
-      "val_rmse_samples": 28.1569766998291
+      "train_loss": 34.458333777672294,
+      "val_loss": 24.573750592261245,
+      "val_mae_samples": 25.069923400878906,
+      "val_mae_ms": 250.69923400878906,
+      "val_rmse_samples": 30.04136848449707
     },
     {
       "epoch": 7,
-      "train_loss": 31.865308909055564,
-      "val_loss": 23.467079326084683,
-      "val_mae_samples": 23.962881088256836,
-      "val_mae_ms": 239.62881088256836,
-      "val_rmse_samples": 28.270244598388672
+      "train_loss": 32.856762230174695,
+      "val_loss": 23.75315111297922,
+      "val_mae_samples": 24.251497268676758,
+      "val_mae_ms": 242.51497268676758,
+      "val_rmse_samples": 28.42812156677246
     },
     {
       "epoch": 8,
-      "train_loss": 30.962626734501175,
-      "val_loss": 22.666565704345704,
-      "val_mae_samples": 23.16453742980957,
-      "val_mae_ms": 231.6453742980957,
-      "val_rmse_samples": 27.668315887451172
-    },
-    {
-      "epoch": 9,
-      "train_loss": 30.566586790966387,
-      "val_loss": 22.667607861473446,
-      "val_mae_samples": 23.161523818969727,
-      "val_mae_ms": 231.61523818969727,
-      "val_rmse_samples": 27.93204689025879
-    },
-    {
-      "epoch": 10,
-      "train_loss": 30.19220916042809,
-      "val_loss": 22.95019166128976,
-      "val_mae_samples": 23.446880340576172,
-      "val_mae_ms": 234.46880340576172,
-      "val_rmse_samples": 27.677139282226562
-    },
-    {
-      "epoch": 11,
-      "train_loss": 29.690689032418387,
-      "val_loss": 22.765893736339752,
-      "val_mae_samples": 23.260095596313477,
-      "val_mae_ms": 232.60095596313477,
-      "val_rmse_samples": 28.574079513549805
-    },
-    {
-      "epoch": 12,
-      "train_loss": 29.08356638996541,
-      "val_loss": 22.612242180960518,
-      "val_mae_samples": 23.110193252563477,
-      "val_mae_ms": 231.10193252563477,
-      "val_rmse_samples": 28.304595947265625
+      "train_loss": 32.523950535657235,
+      "val_loss": 26.021762513622797,
+      "val_mae_samples": 26.517118453979492,
+      "val_mae_ms": 265.1711845397949,
+      "val_rmse_samples": 32.1009521484375
     }
   ],
   "test": {
-    "loss": 22.361206065586636,
-    "mae_samples": 22.858036041259766,
-    "mae_ms": 228.58036041259766,
-    "rmse_samples": 27.592927932739258
+    "loss": 23.185015083081794,
+    "mae_samples": 23.67988395690918,
+    "mae_ms": 236.7988395690918,
+    "rmse_samples": 27.90099334716797
   },
   "best_checkpoint": "/workspace/models/seismic_cnn1d_regressor_best.pt"
 }

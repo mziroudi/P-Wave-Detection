@@ -1,0 +1,23 @@
+{
+  "split": "test",
+  "n": 825,
+  "sta_lta": {
+    "mae_samples": 23.3769696969697,
+    "mae_ms": 233.76969696969698,
+    "rmse_samples": 52.75307832465583,
+    "seconds_total": 0.6030378840005142,
+    "ms_per_window": 0.7309550109097142,
+    "sta_samples": 25,
+    "lta_samples": 200,
+    "threshold": 2.0
+  },
+  "cnn_regressor": {
+    "mae_samples": 23.67988395690918,
+    "mae_ms": 236.7988395690918,
+    "inference_seconds_total": 0.18060455299928435,
+    "inference_ms_per_window": 0.21891460969610224,
+    "checkpoint": "/workspace/models/seismic_cnn1d_regressor_best.pt"
+  },
+  "delta_mae_ms_cnn_minus_sta": 3.0291425993948167,
+  "cnn_better_mae": false
+}

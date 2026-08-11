@@ -98,26 +98,44 @@ def main() -> None:
     # Optional offline replay for CI / demos without depending on live FDSN
     if args.demo_replay is not None:
         from obspy import read
-        from src.sliding_window import sliding_window_predict
+
+        from src.ringbuffer import WaveformRingBuffer
 
         st = read(str(args.demo_replay))
         wave = stream_to_array(st)
         sr = float(st[0].stats.sampling_rate)
         if abs(sr - SAMPLE_RATE_HZ) > 1e-3:
             wave = resample_to_hz(wave, sr, SAMPLE_RATE_HZ)
-        result = sliding_window_predict(
-            wave,
-            model,
-            device,
-            hop_samples=SAMPLE_RATE_HZ,
-            alert_threshold=args.threshold,
-            alert_consecutive=args.consecutive,
-        )
-        for t, p, alert in zip(result.times_s, result.probs, result.alerts):
-            print(f"[replay t={t:7.1f}s] p(eq)={p:.3f}")
-            if alert:
-                print("🚨 ALERT: P-Wave Detected! 🚨")
-        print(f"[done] replay windows={len(result.probs)} alerts={int(result.alerts.sum())}")
+        # Local ringbuffer path: push 1 s chunks, infer when full — no HTTP wait.
+        ring = WaveformRingBuffer(n_channels=3, capacity_samples=WINDOW_SAMPLES)
+        hop = SAMPLE_RATE_HZ
+        n_alerts = 0
+        n_windows = 0
+        recent_probs.clear()
+        for start in range(0, wave.shape[1], hop):
+            if args.max_iterations and n_windows >= args.max_iterations:
+                break
+            chunk = wave[:, start : start + hop]
+            if chunk.shape[1] == 0:
+                break
+            ring.push(chunk)
+            if not ring.ready:
+                continue
+            window = ring.get_window()
+            prob = predict_prob(model, window, device)
+            recent_probs.append(prob)
+            alerts = apply_alert_rule(
+                np.asarray(recent_probs, dtype=np.float64),
+                threshold=args.threshold,
+                consecutive=args.consecutive,
+            )
+            t = (start + hop) / float(SAMPLE_RATE_HZ)
+            n_windows += 1
+            print(f"[ringbuffer t={t:7.1f}s] p(eq)={prob:.3f}")
+            if alerts[-1]:
+                n_alerts += 1
+                print("ALERT: P-Wave Detected!")
+        print(f"[done] ringbuffer windows={n_windows} alerts={n_alerts}")
         return
 
     client = Client(args.client)
@@ -145,7 +163,7 @@ def main() -> None:
                 stamp = str(end)
                 print(f"[{stamp}] p(eq)={prob:.3f}")
                 if alerts[-1]:
-                    print("🚨 ALERT: P-Wave Detected! 🚨")
+                    print("ALERT: P-Wave Detected!")
             except Exception as exc:  # keep loop alive on transient FDSN gaps
                 print(f"[warn] fetch/predict failed: {type(exc).__name__}: {exc}")
 

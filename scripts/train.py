@@ -21,6 +21,7 @@ if str(ROOT) not in sys.path:
 
 from src.dataset import WindowDataset, load_window_cache
 from src.model import SeismicCNN1D, count_parameters
+from src.seed import set_global_seed
 from src.utils import ARTIFACTS_DIR, CLASS_NAMES, MODELS_DIR, WINDOWS_DIR, ensure_dirs
 
 
@@ -62,9 +63,8 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
     ensure_dirs()
+    set_global_seed(args.seed)
 
-    torch.manual_seed(args.seed)
-    np.random.seed(args.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"[info] device={device}")
 

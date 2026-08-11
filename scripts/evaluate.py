@@ -11,7 +11,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 import torch
-from sklearn.metrics import confusion_matrix, classification_report, roc_auc_score, roc_curve
+from sklearn.metrics import (
+    average_precision_score,
+    confusion_matrix,
+    classification_report,
+    precision_recall_curve,
+    roc_auc_score,
+    roc_curve,
+)
 from torch.utils.data import DataLoader
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -59,8 +66,10 @@ def main() -> None:
     report = classification_report(y_true, y_pred, target_names=list(CLASS_NAMES), digits=4)
     cm = confusion_matrix(y_true, y_pred)
     auc = float(roc_auc_score(y_true, y_prob))
+    pr_auc = float(average_precision_score(y_true, y_prob))
     print(report)
     print(f"ROC-AUC: {auc:.4f}")
+    print(f"PR-AUC:  {pr_auc:.4f}")
 
     # Confusion matrix
     fig, ax = plt.subplots(figsize=(5.5, 4.5))
@@ -96,6 +105,20 @@ def main() -> None:
     fig.savefig(roc_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
 
+    # Precision-Recall (preferred under class imbalance)
+    precision, recall, _ = precision_recall_curve(y_true, y_prob)
+    fig, ax = plt.subplots(figsize=(5.5, 4.5))
+    ax.plot(recall, precision, color="#0f766e", lw=2, label=f"PR-AUC = {pr_auc:.3f}")
+    ax.set_xlabel("Recall")
+    ax.set_ylabel("Precision")
+    ax.set_title("Precision–Recall — Earthquake class")
+    ax.legend(loc="lower left")
+    ax.grid(True, alpha=0.3)
+    fig.tight_layout()
+    pr_path = args.out_dir / "pr_curve.png"
+    fig.savefig(pr_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
     # Example windows with predictions
     fig, axes = plt.subplots(2, 3, figsize=(12, 5), sharey=False)
     rng = np.random.default_rng(0)
@@ -124,12 +147,14 @@ def main() -> None:
         "split": args.split,
         "checkpoint": str(args.checkpoint),
         "roc_auc": auc,
+        "pr_auc": pr_auc,
         "confusion_matrix": cm.tolist(),
         "classification_report": report,
     }
     (args.out_dir / "eval_metrics.json").write_text(json.dumps(metrics, indent=2))
     print(f"[ok] {cm_path}")
     print(f"[ok] {roc_path}")
+    print(f"[ok] {pr_path}")
     print(f"[ok] {samples_path}")
 
 

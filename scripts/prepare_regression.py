@@ -7,14 +7,13 @@ import json
 import sys
 from pathlib import Path
 
-import numpy as np
-from sklearn.model_selection import train_test_split
-
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from src.dataset import save_window_cache
+from src.seed import set_global_seed
+from src.splits import assert_no_group_leakage, group_train_val_test_indices
 from src.stead_io import iter_subsample_traces
 from src.utils import DATA_DIR, STEAD_SUBSAMPLE_DIR, ensure_dirs
 from src.windows import build_regression_arrays
@@ -29,8 +28,15 @@ def main() -> None:
     parser.add_argument("--n-jitters", type=int, default=3)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--prefer-split", choices=["train", "test", "all"], default="test")
+    parser.add_argument(
+        "--group-by",
+        choices=["event", "station", "window"],
+        default="event",
+        help="Leakage-safe split key (default: event).",
+    )
     args = parser.parse_args()
     ensure_dirs()
+    set_global_seed(args.seed)
 
     records = list(
         iter_subsample_traces(
@@ -54,9 +60,14 @@ def main() -> None:
         f"std={y.std():.1f} range=[{y.min():.1f}, {y.max():.1f}]"
     )
 
-    idx = np.arange(len(y))
-    train_idx, test_idx = train_test_split(idx, test_size=0.2, random_state=args.seed)
-    train_idx, val_idx = train_test_split(train_idx, test_size=0.15, random_state=args.seed)
+    train_idx, val_idx, test_idx = group_train_val_test_indices(
+        meta,
+        None,
+        group_by=args.group_by,
+        seed=args.seed,
+    )
+    leakage = assert_no_group_leakage(meta, train_idx, val_idx, test_idx, group_by=args.group_by)
+    print(f"[info] split group_by={args.group_by} leakage_check={leakage}")
 
     for name, subset in ("train", train_idx), ("val", val_idx), ("test", test_idx):
         save_window_cache(args.out_dir / name, x[subset], y[subset], [meta[i] for i in subset])
@@ -67,6 +78,8 @@ def main() -> None:
         "n_traces": len(records),
         "n_windows": int(len(y)),
         "target": "p_offset_samples_within_10s_window",
+        "group_by": args.group_by,
+        "leakage_check": leakage,
         "splits": {"train": int(len(train_idx)), "val": int(len(val_idx)), "test": int(len(test_idx))},
         "y_mean": float(y.mean()),
         "y_std": float(y.std()),

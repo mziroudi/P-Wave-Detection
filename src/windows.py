@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from src.stead_io import TraceRecord
+from src.trace_ids import parse_event_id, parse_station_id
 from src.utils import (
     LABEL_EARTHQUAKE,
     LABEL_NOISE,
@@ -174,6 +175,11 @@ def build_window_arrays(
             "start_sample": ex.start_sample,
             "label": ex.label,
             "p_offset": ex.p_offset,
+            "station_id": parse_station_id(ex.trace_name),
+            "event_id": parse_event_id(
+                ex.trace_name,
+                "noise" if ex.label == LABEL_NOISE else "earthquake_local",
+            ),
         }
         for ex in examples
     ]
@@ -221,6 +227,8 @@ def build_regression_arrays(
             "trace_name": ex.trace_name,
             "start_sample": ex.start_sample,
             "p_offset": ex.p_offset,
+            "station_id": parse_station_id(ex.trace_name),
+            "event_id": parse_event_id(ex.trace_name, "earthquake_local"),
         }
         for ex in examples
     ]

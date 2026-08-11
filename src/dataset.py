@@ -58,6 +58,10 @@ def save_window_cache(
             [(-1.0 if m["p_offset"] is None else m["p_offset"]) for m in meta],
             dtype=np.float32,
         )
+    if meta and "station_id" in meta[0]:
+        payload["station_id"] = np.array([m["station_id"] for m in meta], dtype=object)
+    if meta and "event_id" in meta[0]:
+        payload["event_id"] = np.array([m["event_id"] for m in meta], dtype=object)
     np.savez(out_dir / "meta.npz", **payload)
 
 
@@ -65,3 +69,29 @@ def load_window_cache(cache_dir: Path) -> tuple[np.ndarray, np.ndarray]:
     x = np.load(cache_dir / "X.npy")
     y = np.load(cache_dir / "y.npy")
     return x, y
+
+
+def load_window_meta(cache_dir: Path) -> list[dict]:
+    """Load per-window metadata saved by ``save_window_cache``."""
+    path = cache_dir / "meta.npz"
+    if not path.exists():
+        return []
+    raw = np.load(path, allow_pickle=True)
+    n = len(raw["trace_name"])
+    meta: list[dict] = []
+    for i in range(n):
+        row = {
+            "trace_name": str(raw["trace_name"][i]),
+            "start_sample": int(raw["start_sample"][i]),
+        }
+        if "label" in raw.files:
+            row["label"] = int(raw["label"][i])
+        if "p_offset" in raw.files:
+            val = float(raw["p_offset"][i])
+            row["p_offset"] = None if val < 0 else val
+        if "station_id" in raw.files:
+            row["station_id"] = str(raw["station_id"][i])
+        if "event_id" in raw.files:
+            row["event_id"] = str(raw["event_id"][i])
+        meta.append(row)
+    return meta

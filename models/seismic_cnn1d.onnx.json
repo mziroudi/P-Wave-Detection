@@ -1,0 +1,5 @@
+{
+  "onnx_path": "/workspace/models/seismic_cnn1d.onnx",
+  "opset": 17,
+  "max_abs_diff_vs_pytorch": 7.152557373046875e-07
+}

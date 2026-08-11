@@ -7,14 +7,13 @@ import json
 import sys
 from pathlib import Path
 
-import numpy as np
-from sklearn.model_selection import train_test_split
-
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from src.dataset import save_window_cache
+from src.seed import set_global_seed
+from src.splits import assert_no_group_leakage, group_train_val_test_indices
 from src.stead_io import iter_official_traces, iter_subsample_traces
 from src.utils import WINDOWS_DIR, ensure_dirs
 from src.windows import build_window_arrays
@@ -32,8 +31,15 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--out-dir", type=Path, default=WINDOWS_DIR)
     parser.add_argument("--prefer-split", choices=["train", "test", "all"], default="all")
+    parser.add_argument(
+        "--group-by",
+        choices=["event", "station", "window"],
+        default="event",
+        help="Leakage-safe split key (default: event). Use 'window' for legacy random split.",
+    )
     args = parser.parse_args()
     ensure_dirs()
+    set_global_seed(args.seed)
 
     if args.source == "subsample":
         data_dir = args.data_dir or (ROOT / "data" / "stead_subsample")
@@ -76,13 +82,14 @@ def main() -> None:
     )
     print(f"[info] windows: {len(y)}  class counts: noise={(y==0).sum()} earthquake={(y==1).sum()}")
 
-    idx = np.arange(len(y))
-    train_idx, test_idx = train_test_split(
-        idx, test_size=0.2, random_state=args.seed, stratify=y
+    train_idx, val_idx, test_idx = group_train_val_test_indices(
+        meta,
+        y,
+        group_by=args.group_by,
+        seed=args.seed,
     )
-    train_idx, val_idx = train_test_split(
-        train_idx, test_size=0.15, random_state=args.seed, stratify=y[train_idx]
-    )
+    leakage = assert_no_group_leakage(meta, train_idx, val_idx, test_idx, group_by=args.group_by)
+    print(f"[info] split group_by={args.group_by} leakage_check={leakage}")
 
     out = args.out_dir
     for name, subset in ("train", train_idx), ("val", val_idx), ("test", test_idx):
@@ -100,6 +107,8 @@ def main() -> None:
             "val": int(len(val_idx)),
             "test": int(len(test_idx)),
         },
+        "group_by": args.group_by,
+        "leakage_check": leakage,
         "source": args.source,
     }
     (out / "summary.json").write_text(json.dumps(summary, indent=2))
