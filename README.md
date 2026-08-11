@@ -50,6 +50,26 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+### Google Colab
+
+1. Open [Google Colab](https://colab.research.google.com/) → **File → Upload notebook**
+2. Upload `notebooks/PWave_Detection_Colab.ipynb` (or open it from the repo after cloning in a blank notebook)
+3. Optional: **Runtime → Change runtime type → GPU**
+4. Run all cells (clone → install → download → visualize → prepare → train → evaluate)
+
+Or paste this in a fresh Colab cell first:
+
+```python
+!git clone https://github.com/mziroudi/P-Wave-Detection.git
+%cd P-Wave-Detection
+!git checkout cursor/p-wave-detection-5a2b
+!pip install -q h5py matplotlib seaborn obspy scikit-learn tqdm requests
+!python scripts/download_stead.py --test-only
+!python scripts/prepare_windows.py --prefer-split test
+!python scripts/train.py --epochs 12
+!python scripts/evaluate.py
+```
+
 ## Pipeline
 
 ```bash
