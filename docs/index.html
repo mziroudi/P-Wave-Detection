@@ -3,589 +3,447 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>P-Wave Detection — Learn Everything</title>
-<meta name="description" content="An interactive, in-depth study guide for the P-Wave Detection project: seismology, data, windowing, the 1D CNN, training, evaluation, and an honest audit." />
+<title>P-Wave Detection — a study</title>
+<meta name="description" content="An unhurried, in-depth reading on the P-Wave Detection project: the seismology, the data, the windows, the network, and an honest reckoning with what it learned." />
 <style>
   :root{
-    --bg:#0b1020; --panel:#121a33; --panel2:#0f1730; --ink:#e8ecf7; --muted:#9fb0d0;
-    --line:#243156; --accent:#5b8cff; --accent2:#ffb020; --eq:#f2637f; --noise:#4fa3ff;
-    --ok:#3ecf8e; --bad:#f2637f; --code:#0a0f1f; --radius:14px; --maxw:1080px;
-    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
-    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --paper:#fbfaf7; --ink:#16150f; --muted:#6b675c; --faint:#8c887d;
+    --rule:#e6e2d8; --rule2:#d8d3c6; --accent:#8a2f27; --mark:#f4efe3;
+    --code:#f2efe8; --measure:40rem;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
   }
-  html[data-theme="light"]{
-    --bg:#f6f8ff; --panel:#ffffff; --panel2:#f0f4ff; --ink:#131a2c; --muted:#4c5a78;
-    --line:#dbe3f7; --code:#0d1426;
+  @media (prefers-color-scheme: dark){
+    :root{--paper:#14130e;--ink:#e9e5da;--muted:#a29d90;--faint:#857f72;
+      --rule:#2a2820;--rule2:#37342a;--accent:#d98b82;--mark:#201e17;--code:#1b1a13;}
+    figure img{filter:none}
   }
   *{box-sizing:border-box}
-  html{scroll-behavior:smooth}
-  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.65;font-size:17px}
-  a{color:var(--accent);text-decoration:none}
-  a:hover{text-decoration:underline}
-  code{font-family:var(--mono);background:rgba(127,150,200,.16);padding:.12em .4em;border-radius:6px;font-size:.9em}
-  pre{background:var(--code);color:#dbe6ff;padding:16px 18px;border-radius:12px;overflow:auto;border:1px solid var(--line);font-size:14px;line-height:1.55}
-  pre code{background:none;padding:0}
-  h1,h2,h3,h4{line-height:1.25;font-weight:750;letter-spacing:-.02em}
-  h2{font-size:1.7rem;margin-top:0}
-  h3{font-size:1.25rem;color:var(--ink)}
-  p{color:var(--ink)}
-  .muted{color:var(--muted)}
+  html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--paper);color:var(--ink);
+    font-family:var(--serif);font-size:19px;line-height:1.72;
+    font-feature-settings:"onum" 1,"kern" 1;text-rendering:optimizeLegibility}
+  ::selection{background:var(--mark)}
 
-  /* progress */
-  #progress{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));z-index:200}
+  #bar{position:fixed;top:0;left:0;height:2px;width:0;background:var(--accent);z-index:50}
 
-  /* layout */
-  .wrap{display:grid;grid-template-columns:270px 1fr;max-width:1360px;margin:0 auto;gap:0}
-  aside{position:sticky;top:0;align-self:start;height:100vh;overflow:auto;padding:22px 18px;border-right:1px solid var(--line);background:var(--panel2)}
-  aside .brand{font-weight:800;font-size:1.05rem;margin-bottom:4px}
-  aside .sub{font-size:.8rem;color:var(--muted);margin-bottom:16px}
-  nav a{display:block;color:var(--muted);padding:6px 10px;border-radius:8px;font-size:.92rem;border-left:2px solid transparent}
-  nav a.active{color:var(--ink);background:rgba(91,140,255,.12);border-left-color:var(--accent);text-decoration:none}
-  nav .grp{margin:14px 0 4px;font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);opacity:.8}
-  main{min-width:0;padding:0 clamp(18px,4vw,56px)}
-  section{max-width:var(--maxw);margin:0 auto;padding:54px 0;border-bottom:1px solid var(--line)}
-  section:last-child{border-bottom:none}
+  /* section-number rail */
+  #rail{position:fixed;left:26px;top:0;height:100vh;display:flex;flex-direction:column;
+    justify-content:center;gap:12px;z-index:40}
+  #rail a{font-family:var(--mono);font-size:11px;letter-spacing:.05em;color:var(--faint);
+    text-decoration:none;opacity:.55;transition:opacity .2s,color .2s}
+  #rail a.on{color:var(--accent);opacity:1}
+  #rail a:hover{opacity:1;color:var(--ink)}
+  @media(max-width:1080px){#rail{display:none}}
 
-  .toolbar{display:flex;gap:10px;align-items:center;justify-content:flex-end;padding:14px 0}
-  .btn{cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:7px 12px;border-radius:10px;font-size:.85rem}
-  .btn:hover{border-color:var(--accent)}
+  .page{max-width:var(--measure);margin:0 auto;padding:0 24px}
+  header.top{padding:14vh 0 0}
+  .kicker{font-family:var(--mono);font-size:12px;letter-spacing:.28em;text-transform:uppercase;
+    color:var(--accent);margin:0 0 22px}
+  h1{font-size:clamp(2.4rem,6vw,3.6rem);line-height:1.04;font-weight:600;letter-spacing:-.01em;margin:0}
+  h1 em{font-style:italic}
+  .dek{font-size:1.22rem;color:var(--muted);max-width:34rem;margin:22px 0 0;font-style:italic}
+  .byline{font-family:var(--mono);font-size:12px;color:var(--faint);margin:30px 0 0;letter-spacing:.03em}
+  hr.rule{border:none;border-top:1px solid var(--rule);margin:44px 0}
 
-  /* hero */
-  .hero{padding-top:40px}
-  .hero h1{font-size:clamp(2.1rem,5vw,3.2rem);margin:.2em 0}
-  .grad{background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
-  .lead{font-size:1.2rem;color:var(--muted);max-width:60ch}
-  .pills{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0}
-  .pill{font-size:.8rem;border:1px solid var(--line);border-radius:999px;padding:5px 12px;color:var(--muted);background:var(--panel)}
+  main section{padding:16px 0 8px}
+  .num{font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.14em;
+    display:block;margin:56px 0 6px}
+  h2{font-size:1.7rem;font-weight:600;line-height:1.15;margin:.1em 0 .5em;letter-spacing:-.01em}
+  h3{font-size:1.16rem;font-weight:600;margin:1.6em 0 .3em}
+  p{margin:1em 0}
+  .lead-p{font-size:1.08rem}
+  strong{font-weight:650}
+  a{color:var(--ink);text-decoration:underline;text-decoration-color:var(--rule2);
+    text-underline-offset:3px;text-decoration-thickness:1px}
+  a:hover{text-decoration-color:var(--accent)}
+  ul,ol{padding-left:1.15em}
+  li{margin:.35em 0}
+  code{font-family:var(--mono);font-size:.82em;background:var(--code);padding:.1em .38em;border-radius:3px}
+  pre{font-family:var(--mono);background:var(--code);border:1px solid var(--rule);border-left:2px solid var(--rule2);
+    padding:16px 18px;border-radius:4px;overflow:auto;font-size:13.5px;line-height:1.6;margin:1.4em 0}
+  pre code{background:none;padding:0;font-size:inherit}
 
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;margin:18px 0}
-  .grid{display:grid;gap:16px}
-  .g2{grid-template-columns:repeat(2,1fr)}
-  .g3{grid-template-columns:repeat(3,1fr)}
-  @media(max-width:820px){.g2,.g3{grid-template-columns:1fr}.wrap{grid-template-columns:1fr}aside{position:static;height:auto;border-right:none;border-bottom:1px solid var(--line)}}
+  /* understated note */
+  .note{border-left:2px solid var(--accent);padding:2px 0 2px 18px;margin:1.6em 0;color:var(--ink)}
+  .note .lab{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--accent);display:block;margin-bottom:4px}
+  .note.q{border-color:var(--muted)}
+  .note.q .lab{color:var(--muted)}
 
-  figure{margin:18px 0;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px}
-  figure img{width:100%;display:block;border-radius:8px;background:#fff}
-  figcaption{color:var(--muted);font-size:.88rem;margin-top:10px}
+  /* figures — quiet, can extend past the measure */
+  figure{margin:2.2em 0}
+  figure.wide{width:min(58rem,92vw);margin-left:calc(50% - min(29rem,46vw))}
+  figure img{width:100%;display:block;border:1px solid var(--rule);border-radius:3px;background:#fff}
+  figcaption{font-size:.86rem;color:var(--muted);font-style:italic;margin-top:.7em;max-width:34rem}
+  figure.wide figcaption{margin-left:auto;margin-right:auto}
 
-  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:.94rem}
-  th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
-  th{background:var(--panel2);font-weight:700}
-  tbody tr:nth-child(even){background:rgba(127,150,200,.06)}
+  /* booktable: hairline rules only */
+  table{width:100%;border-collapse:collapse;margin:1.6em 0;font-size:.9rem;font-family:var(--serif)}
+  thead th{border-top:1.5px solid var(--ink);border-bottom:1px solid var(--ink);
+    text-align:left;padding:8px 12px 8px 0;font-weight:650}
+  tbody td{border-bottom:1px solid var(--rule);padding:8px 12px 8px 0;vertical-align:top;color:var(--ink)}
+  tbody tr:last-child td{border-bottom:1.5px solid var(--ink)}
+  td code{font-size:.8em}
+  .datum{font-family:var(--mono);font-variant-numeric:tabular-nums}
 
-  .kpi{display:flex;flex-direction:column;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
-  .kpi b{font-size:1.9rem;line-height:1;color:var(--ink)}
-  .kpi span{color:var(--muted);font-size:.85rem}
+  /* toc */
+  .toc{columns:2;column-gap:40px;font-size:.95rem;margin:1em 0 0}
+  .toc a{display:block;text-decoration:none;color:var(--ink);padding:5px 0;border-bottom:1px solid var(--rule)}
+  .toc a:hover{color:var(--accent)}
+  .toc .tn{font-family:var(--mono);font-size:11px;color:var(--faint);margin-right:10px}
+  @media(max-width:600px){.toc{columns:1}}
 
-  .callout{border-left:4px solid var(--accent);background:rgba(91,140,255,.08);padding:14px 18px;border-radius:0 12px 12px 0;margin:16px 0}
-  .callout.warn{border-color:var(--accent2);background:rgba(255,176,32,.10)}
-  .callout.bad{border-color:var(--bad);background:rgba(242,99,127,.10)}
-  .callout.ok{border-color:var(--ok);background:rgba(62,207,142,.10)}
-
-  details{border:1px solid var(--line);border-radius:12px;padding:4px 16px;margin:12px 0;background:var(--panel)}
-  details[open]{padding-bottom:14px}
-  summary{cursor:pointer;font-weight:650;padding:12px 0;list-style:none}
-  summary::-webkit-details-marker{display:none}
-  summary::before{content:"▸";color:var(--accent);margin-right:10px;display:inline-block;transition:transform .15s}
-  details[open] summary::before{transform:rotate(90deg)}
-
-  .tag{display:inline-block;font-size:.72rem;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
-  .flow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-family:var(--mono);font-size:.86rem}
-  .flow span{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 12px}
-  .flow .arw{color:var(--accent);border:none;background:none;padding:0}
+  /* inline calculator */
+  .calc{margin:1.6em 0}
+  .calc .sent{font-size:1.05rem}
+  .calc output{font-family:var(--mono);font-variant-numeric:tabular-nums;border-bottom:1px dotted var(--accent)}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:2px;background:var(--rule2);
+    margin:22px 0 4px;outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;
+    background:var(--accent);cursor:pointer;border:3px solid var(--paper);box-shadow:0 0 0 1px var(--accent)}
+  input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:var(--accent);
+    cursor:pointer;border:3px solid var(--paper);box-shadow:0 0 0 1px var(--accent)}
+  .rangelab{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--faint)}
 
   /* quiz */
-  .q{margin:16px 0;padding:16px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
-  .q .opt{display:block;padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin:8px 0;cursor:pointer;transition:.12s}
-  .q .opt:hover{border-color:var(--accent)}
-  .q .opt.correct{border-color:var(--ok);background:rgba(62,207,142,.14)}
-  .q .opt.wrong{border-color:var(--bad);background:rgba(242,99,127,.14)}
-  .q .exp{margin-top:8px;font-size:.9rem;color:var(--muted);display:none}
-  .q.answered .exp{display:block}
+  .quiz .item{border-top:1px solid var(--rule);padding:20px 0}
+  .quiz .item:last-child{border-bottom:1px solid var(--rule)}
+  .quiz .qq{font-weight:600;margin:0 0 .5em}
+  .quiz .opt{display:block;cursor:pointer;padding:6px 0 6px 26px;position:relative;color:var(--ink)}
+  .quiz .opt:before{content:"";position:absolute;left:0;top:12px;width:10px;height:10px;border:1px solid var(--rule2);border-radius:50%}
+  .quiz .opt:hover:before{border-color:var(--accent)}
+  .quiz .item.done .opt{cursor:default;color:var(--muted)}
+  .quiz .opt.correct{color:var(--ink)}
+  .quiz .opt.correct:before{border-color:var(--accent);background:var(--accent)}
+  .quiz .opt.wrong:before{border-color:var(--muted);background:var(--muted)}
+  .quiz .exp{display:none;font-size:.88rem;color:var(--muted);font-style:italic;margin:.6em 0 0}
+  .quiz .item.done .exp{display:block}
+  #score{font-family:var(--mono);font-size:.9rem;color:var(--accent);margin-top:20px;min-height:1.2em}
 
-  .calc label{display:block;font-size:.85rem;color:var(--muted);margin:10px 0 4px}
-  .calc input[type=range]{width:100%}
-  .calc output{font-family:var(--mono)}
-  .bars{margin-top:14px}
-  .bar{height:26px;border-radius:6px;margin:6px 0;position:relative;background:var(--panel2);border:1px solid var(--line)}
-  .bar>i{position:absolute;left:0;top:0;bottom:0;border-radius:6px;display:block}
-  .bar .lbl{position:absolute;left:10px;top:3px;font-size:.8rem;font-family:var(--mono);color:var(--ink)}
-
-  footer{max-width:var(--maxw);margin:0 auto;padding:40px 0 80px;color:var(--muted);font-size:.9rem}
-  .anchor{scroll-margin-top:20px}
+  footer{color:var(--faint);font-size:.82rem;font-family:var(--mono);line-height:1.7;
+    border-top:1px solid var(--rule);margin-top:60px;padding:26px 0 90px}
+  footer a{color:var(--faint)}
+  .anchor{scroll-margin-top:24px}
 </style>
 </head>
 <body>
-<div id="progress"></div>
-<div class="wrap">
-  <aside>
-    <div class="brand">🌊 P-Wave Detection</div>
-    <div class="sub">Interactive study guide</div>
-    <div class="toolbar" style="justify-content:flex-start;padding:0 0 10px">
-      <button class="btn" id="themeBtn" title="Toggle theme">🌓 Theme</button>
-    </div>
-    <nav id="nav">
-      <div class="grp">Foundations</div>
-      <a href="#overview">1 · Overview</a>
-      <a href="#science">2 · The science</a>
-      <a href="#pipeline">3 · The pipeline</a>
-      <div class="grp">Data → Model</div>
-      <a href="#data">4 · The data (STEAD)</a>
-      <a href="#windows">5 · Making windows</a>
-      <a href="#model">6 · The model</a>
-      <a href="#training">7 · Training</a>
-      <div class="grp">Results</div>
-      <a href="#evaluation">8 · Evaluation</a>
-      <a href="#regression">9 · P-arrival regression</a>
-      <a href="#continuous">10 · Continuous & live</a>
-      <div class="grp">Think critically</div>
-      <a href="#audit">11 · The honest audit</a>
-      <div class="grp">Reference</div>
-      <a href="#cli">12 · CLI cheat sheet</a>
-      <a href="#glossary">13 · Glossary</a>
-      <a href="#quiz">14 · Test yourself</a>
-    </nav>
-  </aside>
+<div id="bar"></div>
+<nav id="rail" aria-label="Sections"></nav>
+
+<div class="page">
+  <header class="top">
+    <p class="kicker">A study · seismology × machine learning</p>
+    <h1>Teaching a small network to<br><em>hear an earthquake begin</em>.</h1>
+    <p class="dek">Everything about the P-Wave Detection project — the physics, the data, the windows, the 1-D CNN, and an honest reckoning with what it actually learned.</p>
+    <p class="byline">~20 min read · figures &amp; numbers reproduced from the repository</p>
+    <hr class="rule" />
+    <nav class="toc" id="toc"></nav>
+  </header>
 
   <main>
-    <!-- HERO -->
-    <section class="hero anchor" id="top">
-      <span class="tag">Machine Learning · Seismology · PyTorch</span>
-      <h1>Learn <span class="grad">P-Wave Detection</span>, end to end.</h1>
-      <p class="lead">This page teaches every meaningful detail of the project — the earthquake physics, the STEAD data, how raw seismograms become training windows, the 1D CNN architecture, how it's trained and evaluated, and — crucially — how to critique what it really learned.</p>
-      <div class="pills">
-        <span class="pill">10-second windows</span>
-        <span class="pill">3 channels (E/N/Z) @ 100 Hz</span>
-        <span class="pill">1D CNN · 110,466 params</span>
-        <span class="pill">Noise vs Earthquake</span>
-        <span class="pill">P-arrival regression</span>
-      </div>
-      <div class="callout">Study tip: read top to bottom. Each section builds on the previous one, and the sidebar highlights where you are. Expand the <b>▸ Deep dive</b> panels for the fine print, and finish with the <a href="#quiz">quiz</a>.</div>
+    <!-- 1 -->
+    <section class="anchor" id="overview" data-title="Overview">
+      <span class="num">01 — Overview</span>
+      <h2>The one question, asked sixty times a minute</h2>
+      <p class="lead-p">A seismometer turns ground motion into a wiggly line over time — a <strong>seismogram</strong>. This project hands a small neural network a ten-second slice of that line and asks it one thing:</p>
+      <div class="note"><span class="lab">The question</span>Does this slice contain the <em>beginning</em> of an earthquake, or is it only background noise?</div>
+      <p>The trick is to treat the seismogram like a short piece of audio: a fixed clip, sampled a hundred times a second, on three channels of motion — East, North, and Vertical. A <strong>1-D convolutional network</strong> reads the clip and returns two probabilities: noise, or earthquake.</p>
+      <p>The repository goes further. A second model predicts <em>exactly when</em> the quake starts inside the clip. And the detector can run continuously over an hour of real data, or live against a streaming station. We will build up to all of it — and then take it apart.</p>
     </section>
 
-    <!-- 1 OVERVIEW -->
-    <section class="anchor" id="overview">
-      <h2>1 · What is this project?</h2>
-      <p>An earthquake sends out vibrations. A sensor (seismometer) records those vibrations as a wiggly line over time — a <b>seismogram</b>. This project asks a small neural network one deceptively simple question, sixty times a minute:</p>
-      <div class="callout ok" style="font-size:1.1rem"><b>“Does this last slice of the sensor signal contain the beginning of an earthquake — or is it just background noise?”</b></div>
-      <p>It treats a seismogram like a short piece of <b>audio</b>: a fixed 10-second clip, sampled 100 times per second, on three channels (East, North, Vertical). A <b>1D Convolutional Neural Network</b> reads that clip and outputs two numbers — the probability it's <span style="color:var(--noise)"><b>noise</b></span> and the probability it's an <span style="color:var(--eq)"><b>earthquake</b></span>.</p>
-      <div class="grid g3">
-        <div class="kpi"><b>10 s</b><span>window length (1000 samples)</span></div>
-        <div class="kpi"><b>3</b><span>channels: E / N / Z motion</span></div>
-        <div class="kpi"><b>2</b><span>classes: noise / earthquake</span></div>
+    <!-- 2 -->
+    <section class="anchor" id="science" data-title="The science">
+      <span class="num">02 — The science</span>
+      <h2>Why a few seconds is everything</h2>
+      <p>An earthquake radiates two body waves. The <strong>P-wave</strong> is a push–pull compression: fast (about 6 km/s) but faint — it arrives first, the gentle first tremor. The <strong>S-wave</strong> is a side-to-side shear: slower (about 3.5 km/s) but violent — it carries most of the damage, and it arrives later.</p>
+      <p>That gap between the harmless herald and the destructive follow-up is the whole game. Catch the P-wave the instant it lands, and you buy time before the S-wave hits. This is <strong>Earthquake Early Warning</strong> — detection in real time, not prediction of the future.</p>
+
+      <div class="calc">
+        <p class="sent">At <output id="dOut">80</output> km from the epicenter, the P-wave arrives after <output id="pOut">13.3</output> s and the S-wave after <output id="sOut">22.9</output> s — a warning window of <strong><output id="wOut">9.5</output> seconds</strong> to act.</p>
+        <input type="range" id="dist" min="10" max="300" value="80" aria-label="Epicentral distance in kilometers" />
+        <div class="rangelab"><span>10 km</span><span>drag to change distance</span><span>300 km</span></div>
       </div>
-      <p>The repo also includes a second model that predicts <b>exactly when</b> the earthquake starts inside the window (regression), plus tools to run the detector <b>continuously</b> over an hour of real data and <b>live</b> against a streaming station.</p>
-      <div class="callout warn"><b>Honesty first.</b> A big part of this guide (section 11) is about how the impressive-looking 97% accuracy is <i>misleading</i>, why, and how a professional would catch it. Learning to distrust your own metrics is the most valuable lesson here.</div>
+      <p class="lead-p" style="color:var(--muted);font-size:.98rem">Notice how the window widens with distance: far sites get more warning, sites atop the epicenter get almost none — the "blind zone."</p>
     </section>
 
-    <!-- 2 SCIENCE -->
-    <section class="anchor" id="science">
-      <h2>2 · The science: why speed saves lives</h2>
-      <p>An earthquake radiates two main <b>body waves</b> through the Earth:</p>
-      <div class="grid g2">
-        <div class="card"><h3 style="color:var(--accent)">P-wave (Primary)</h3><p class="muted">A <b>compressional</b> wave (push–pull). <b>Fast</b> (~6 km/s) but <b>weak</b>. It arrives <b>first</b> — the gentle first tremor.</p></div>
-        <div class="card"><h3 style="color:var(--eq)">S-wave (Secondary)</h3><p class="muted">A <b>shear</b> wave (side-to-side). <b>Slower</b> (~3.5 km/s) but carries most of the <b>destructive</b> shaking. It arrives <b>later</b>.</p></div>
-      </div>
-      <p>Because the harmless P-wave outruns the dangerous S-wave, detecting the P-wave the instant it arrives buys you a <b>head start</b> — the entire premise of <b>Earthquake Early Warning (EEW)</b>. This is real-time <i>detection</i> (a smoke detector), not <i>prediction</i> of a future quake.</p>
-
-      <div class="card calc">
-        <h3>🧮 Interactive: how much warning do you get?</h3>
-        <p class="muted">Move the slider to change your distance from the epicenter. Warning time is the gap between the P-wave arriving (detection) and the S-wave arriving (strong shaking), using V<sub>p</sub>≈6 km/s and V<sub>s</sub>≈3.5 km/s.</p>
-        <label>Epicentral distance: <output id="distOut">80</output> km</label>
-        <input type="range" id="dist" min="10" max="300" value="80" />
-        <div class="bars">
-          <div class="bar"><i id="barP" style="background:var(--accent)"></i><span class="lbl">P-wave arrival: <output id="pOut"></output> s</span></div>
-          <div class="bar"><i id="barS" style="background:var(--eq)"></i><span class="lbl">S-wave arrival: <output id="sOut"></output> s</span></div>
-        </div>
-        <p style="margin-top:10px">⏱️ Warning window ≈ <b><output id="warnOut" style="color:var(--ok)"></output> seconds</b> to act before strong shaking.</p>
-      </div>
-      <p class="muted" style="font-size:.9rem">Key takeaway: warning time <i>grows with distance</i> — sites far from the epicenter get more warning, sites on top of it get almost none (the "blind zone").</p>
-    </section>
-
-    <!-- 3 PIPELINE -->
-    <section class="anchor" id="pipeline">
-      <h2>3 · The whole pipeline at a glance</h2>
-      <p>Everything in the repo is a command-line step. Data flows left to right:</p>
-      <div class="flow card">
-        <span>download_stead</span><span class="arw">→</span>
-        <span>prepare_windows</span><span class="arw">→</span>
-        <span>train</span><span class="arw">→</span>
-        <span>evaluate</span><span class="arw">→</span>
-        <span>predict</span>
-      </div>
-      <p>Three inference "modes" reuse the trained model:</p>
+    <!-- 3 -->
+    <section class="anchor" id="pipeline" data-title="The pipeline">
+      <span class="num">03 — The pipeline</span>
+      <h2>Data flows in one direction</h2>
+      <p>Every step is a command-line script. The spine of the project is five of them, in order:</p>
+      <pre><code>download_stead → prepare_windows → train → evaluate → predict</code></pre>
+      <p>Three inference modes reuse the trained model, and a parallel branch handles the timing task:</p>
       <table>
         <thead><tr><th>Mode</th><th>Script</th><th>What it does</th></tr></thead>
         <tbody>
-          <tr><td>Single window</td><td><code>predict.py</code></td><td>Classify one cached 10 s window.</td></tr>
-          <tr><td>Continuous</td><td><code>continuous_inference.py</code></td><td>Slide the window across an hour of real data; apply an alert rule.</td></tr>
-          <tr><td>Live</td><td><code>live_stream.py</code></td><td>Poll a live FDSN station every second and alert in near-real-time.</td></tr>
+          <tr><td>Single</td><td><code>predict.py</code></td><td>classify one cached window</td></tr>
+          <tr><td>Continuous</td><td><code>continuous_inference.py</code></td><td>slide across an hour; apply an alert rule</td></tr>
+          <tr><td>Live</td><td><code>live_stream.py</code></td><td>poll a live station each second</td></tr>
+          <tr><td>Timing</td><td><code>*_regression.py</code></td><td>predict the P-arrival instant</td></tr>
         </tbody>
       </table>
-      <p>A parallel branch handles the second task: <code>prepare_regression → train_regression → evaluate_regression</code> for predicting the P-arrival time.</p>
     </section>
 
-    <!-- 4 DATA -->
-    <section class="anchor" id="data">
-      <h2>4 · The data: STEAD</h2>
-      <p><b>STEAD</b> (STanford EArthquake Dataset) is a library of ~1.2 million labeled three-component seismograms. Each trace is 60 seconds long at 100 Hz — that's <b>6000 samples × 3 channels</b> — and earthquake traces come with expert <b>phase picks</b>: the exact sample index where the P-wave and S-wave arrive.</p>
-      <p>The project uses a smaller public <b>subsample</b> hosted on Zenodo so it runs on one machine. After <code>download_stead.py --test-only</code> you get HDF5 files structured like this:</p>
+    <!-- 4 -->
+    <section class="anchor" id="data" data-title="The data">
+      <span class="num">04 — The data</span>
+      <h2>STEAD, and a portable slice of it</h2>
+      <p>The <strong>STanford EArthquake Dataset</strong> holds roughly 1.2 million labeled three-component seismograms. Each trace is sixty seconds at 100 Hz — <strong>6000 samples across 3 channels</strong> — and earthquake traces carry expert <strong>phase picks</strong>: the exact sample where each wave arrives.</p>
+      <p>To keep things runnable on one machine, the project pulls a public subsample from Zenodo. The waveforms arrive as HDF5:</p>
       <table>
-        <thead><tr><th>HDF5 key</th><th>Shape</th><th>Meaning</th></tr></thead>
+        <thead><tr><th>Key</th><th>Shape</th><th>Meaning</th></tr></thead>
         <tbody>
-          <tr><td><code>traces</code></td><td>(N, 6000, 3)</td><td>the waveforms — samples × E/N/Z</td></tr>
-          <tr><td><code>metadata</code></td><td>(N,)</td><td>names like <code>AMT.HP_20120416124803_EV</code> = station.network_eventtime</td></tr>
-          <tr><td><code>p_arrival</code></td><td>(N,)</td><td>P-wave sample index (earthquake files only)</td></tr>
-          <tr><td><code>s_arrival</code></td><td>(N,)</td><td>S-wave sample index</td></tr>
+          <tr><td><code>traces</code></td><td class="datum">(N, 6000, 3)</td><td>the waveforms — samples × E/N/Z</td></tr>
+          <tr><td><code>metadata</code></td><td class="datum">(N,)</td><td>names like <code>AMT.HP_20120416124803_EV</code></td></tr>
+          <tr><td><code>p_arrival</code></td><td class="datum">(N,)</td><td>P-wave sample index</td></tr>
+          <tr><td><code>s_arrival</code></td><td class="datum">(N,)</td><td>S-wave sample index</td></tr>
         </tbody>
       </table>
-      <p>Earthquake waveforms live in <code>test.hdf5</code>; pure background noise lives in <code>test_noise.hdf5</code>. That separation matters later.</p>
-      <details><summary>▸ Deep dive: units, sampling & the name string</summary>
-        <p>Amplitudes are raw instrument <b>counts</b> (proportional to ground motion). <b>100 Hz</b> means one sample every 10 milliseconds, so sample index × 10 ms = time. The name <code>STATION.NETWORK_YYYYMMDDhhmmss_EV</code> encodes <i>which sensor</i> recorded the event and <i>when the event happened</i> — we'll use those tokens to detect data leakage in section 11.</p>
-      </details>
+      <p>Earthquakes live in <code>test.hdf5</code>; pure background lives in <code>test_noise.hdf5</code>. That the name string encodes both the <em>station</em> and the <em>event time</em> will matter later, when we hunt for leakage.</p>
     </section>
 
-    <!-- 5 WINDOWS -->
-    <section class="anchor" id="windows">
-      <h2>5 · From a 60 s trace to a training window</h2>
-      <p>The model wants fixed 10-second (1000-sample) clips, not 60-second traces. <code>src/windows.py</code> cuts them with deliberate rules:</p>
-
-      <h3>Earthquake window</h3>
-      <ul>
-        <li>Start <b>200 samples (~2 s) before</b> the P pick, so the clip contains a bit of pre-event context <i>and</i> the first P tremor.</li>
-        <li>Add a small random <b>jitter of ±50 samples</b> so the network can't memorize a fixed P position.</li>
-        <li>Clamp to stay inside the trace, then cut exactly 1000 samples.</li>
-        <li>Record <code>p_offset = p_arrival − start</code> — this is the target for the regression model.</li>
-      </ul>
-      <h3>Noise window</h3>
-      <p>A random 1000-sample slice from a dedicated noise trace.</p>
-      <h3>Pre-P hard negative (on by default)</h3>
-      <p>A <i>noise-labeled</i> window taken from <b>before</b> the P arrival on an earthquake trace — an attempt to teach the model that the quiet lead-in is still "noise".</p>
-
-      <h3>Normalization</h3>
-      <p>Every window is <b>per-channel z-scored</b>: subtract the mean, divide by the standard deviation, independently for each channel. This removes the absolute amplitude so a big quake and a small one look comparable.</p>
-      <div class="callout warn"><b>Foreshadowing.</b> This per-window normalization, combined with the P being pre-aligned near a fixed index, is exactly what creates the shortcut we expose in section 11. Keep it in mind.</div>
-
-      <details><summary>▸ Deep dive: how the dataset is split</summary>
-        <p><code>prepare_windows.py</code> builds one earthquake window (+ optionally one pre-P noise window) per earthquake trace and one noise window per noise trace, shuffles with seed 42, then uses scikit-learn's <code>train_test_split</code>: 80% train / 20% test, then 15% of train becomes validation, <b>stratified</b> so class balance is preserved. The split is at the <i>window</i> level — a subtlety that causes leakage (section 11).</p>
-      </details>
+    <!-- 5 -->
+    <section class="anchor" id="windows" data-title="Making windows">
+      <span class="num">05 — Making windows</span>
+      <h2>From a minute of signal to a ten-second lesson</h2>
+      <p>The network wants fixed ten-second clips. The windowing code cuts them deliberately.</p>
+      <p>An <strong>earthquake window</strong> starts two seconds <em>before</em> the P pick, so it holds a little context and the first tremor. A random jitter of ±50 samples keeps the network from memorizing a fixed position. Exactly 1000 samples are taken, and the P's offset within the clip is recorded as the regression target.</p>
+      <p>A <strong>noise window</strong> is a random slice of a noise-only trace. A <strong>pre-P hard negative</strong> — a noise-labeled clip taken from before the P on an earthquake trace — is added to discourage firing on the quiet lead-in.</p>
+      <p>Finally, every window is <strong>z-scored per channel</strong>: subtract the mean, divide by the standard deviation. This erases absolute amplitude, so a great quake and a small one look comparable.</p>
+      <div class="note q"><span class="lab">Remember this</span>Per-window z-scoring, paired with the P sitting near a fixed index, is precisely what will let the model cheat. We return to it in section 11.</div>
     </section>
 
-    <!-- 6 MODEL -->
-    <section class="anchor" id="model">
-      <h2>6 · The model: <code>SeismicCNN1D</code></h2>
-      <p>A <b>1D CNN</b> slides small learnable filters along the time axis, detecting local shapes (a sharp onset, an oscillation) and combining them into higher-level features — just like a 2D CNN does for images, but in one dimension (time) across three channels.</p>
-      <p>Here is the exact data flow. <code>B</code> is the batch size; the tensor shape is (channels × timesteps):</p>
+    <!-- 6 -->
+    <section class="anchor" id="model" data-title="The model">
+      <span class="num">06 — The model</span>
+      <h2>A modest stack of convolutions</h2>
+      <p>A 1-D CNN slides small learnable filters along time, catching local shapes — a sharp onset, an oscillation — and composing them into richer features. Here is the exact path a clip takes; <code>B</code> is the batch size:</p>
       <table>
-        <thead><tr><th>Layer</th><th>Output shape</th><th>Why</th></tr></thead>
+        <thead><tr><th>Layer</th><th>Shape</th><th>Purpose</th></tr></thead>
         <tbody>
-          <tr><td>Input</td><td>(B, 3, 1000)</td><td>E/N/Z over 10 s</td></tr>
-          <tr><td>Conv1d(3→32, k=7) + BN + ReLU + MaxPool(2)</td><td>(B, 32, 500)</td><td>wide filters catch broad onset shapes</td></tr>
-          <tr><td>Conv1d(32→64, k=5) + BN + ReLU + MaxPool(2)</td><td>(B, 64, 250)</td><td>mid-scale patterns</td></tr>
-          <tr><td>Conv1d(64→128, k=5) + BN + ReLU + MaxPool(2)</td><td>(B, 128, 125)</td><td>finer, richer features</td></tr>
-          <tr><td>Conv1d(128→128, k=3) + BN + ReLU + AdaptiveAvgPool(1)</td><td>(B, 128, 1)</td><td>summarize the whole clip</td></tr>
-          <tr><td>Flatten → Dropout(0.3) → Linear(128→64) → ReLU → Dropout → Linear(64→2)</td><td>(B, 2)</td><td>decide: [noise, earthquake]</td></tr>
+          <tr><td>Input</td><td class="datum">(B, 3, 1000)</td><td>E/N/Z over 10 s</td></tr>
+          <tr><td>Conv 3→32, k7 · BN · ReLU · Pool</td><td class="datum">(B, 32, 500)</td><td>broad onset shapes</td></tr>
+          <tr><td>Conv 32→64, k5 · BN · ReLU · Pool</td><td class="datum">(B, 64, 250)</td><td>mid-scale patterns</td></tr>
+          <tr><td>Conv 64→128, k5 · BN · ReLU · Pool</td><td class="datum">(B, 128, 125)</td><td>finer features</td></tr>
+          <tr><td>Conv 128→128, k3 · BN · ReLU · AvgPool</td><td class="datum">(B, 128, 1)</td><td>summarize the clip</td></tr>
+          <tr><td>Flatten · Dropout · 128→64 · 64→2</td><td class="datum">(B, 2)</td><td>decide noise / earthquake</td></tr>
         </tbody>
       </table>
-      <p>Total: <b>110,466 trainable parameters</b> — tiny by deep-learning standards, which is appropriate for a fast real-time detector.</p>
-      <div class="grid g2">
-        <div class="card"><h3>Building blocks, in plain English</h3>
-          <ul class="muted" style="margin:0;padding-left:18px">
-            <li><b>Conv1d</b> — learnable pattern detectors sliding over time.</li>
-            <li><b>BatchNorm</b> — keeps activations well-scaled; speeds & stabilizes training.</li>
-            <li><b>ReLU</b> — non-linearity (keep positives, zero negatives) so the net can learn complex shapes.</li>
-            <li><b>MaxPool(2)</b> — halve the time length, keep the strongest response.</li>
-            <li><b>AdaptiveAvgPool(1)</b> — average over time → one vector per clip.</li>
-            <li><b>Dropout(0.3)</b> — randomly mute 30% of units in training to reduce over-fitting.</li>
-          </ul>
-        </div>
-        <div class="card"><h3>The regressor twin</h3>
-          <p class="muted"><code>SeismicCNN1DRegressor</code> reuses the <i>identical</i> convolutional backbone (it can even copy the classifier's trained weights) and swaps the head for a single <b>sigmoid</b> unit scaled to [0, 999]. Output = the P-wave's sample index inside the window → milliseconds via <code>× 10</code>.</p>
-        </div>
-      </div>
+      <p>That is <strong>110,466 parameters</strong> — deliberately small, because a real-time detector should be quick. The timing model, <code>SeismicCNN1DRegressor</code>, reuses this exact backbone and swaps the final layer for a single sigmoid unit scaled to the window length, emitting the P-arrival sample index.</p>
     </section>
 
-    <!-- 7 TRAINING -->
-    <section class="anchor" id="training">
-      <h2>7 · Training</h2>
-      <p>Training nudges the 110k parameters so predictions match the labels. The recipe:</p>
+    <!-- 7 -->
+    <section class="anchor" id="training" data-title="Training">
+      <span class="num">07 — Training</span>
+      <h2>Nudging the weights</h2>
+      <p>Training adjusts those parameters until predictions match labels, judged by a loss and improved with an optimizer.</p>
       <table>
-        <thead><tr><th>Ingredient</th><th>Choice</th><th>Role</th></tr></thead>
+        <thead><tr><th>Choice</th><th>Value</th></tr></thead>
         <tbody>
-          <tr><td>Loss</td><td>Cross-Entropy (class) / SmoothL1 (regression)</td><td>measures how wrong predictions are</td></tr>
-          <tr><td>Optimizer</td><td>AdamW, lr = 1e-3, weight-decay = 1e-4</td><td>updates weights; decay curbs over-fitting</td></tr>
-          <tr><td>Scheduler</td><td>ReduceLROnPlateau (×0.5, patience 2)</td><td>lowers lr when validation stalls</td></tr>
-          <tr><td>Epochs / batch</td><td>12 / 64 (default)</td><td>passes over data / samples per step</td></tr>
-          <tr><td>Checkpoint</td><td>best validation loss</td><td>keep the model that generalizes best</td></tr>
-          <tr><td>Seed</td><td>42</td><td>reproducibility</td></tr>
+          <tr><td>Loss</td><td>Cross-Entropy (classify) · SmoothL1 (regress)</td></tr>
+          <tr><td>Optimizer</td><td>AdamW · lr 1e-3 · weight-decay 1e-4</td></tr>
+          <tr><td>Schedule</td><td>halve lr when validation stalls</td></tr>
+          <tr><td>Epochs · batch</td><td>12 · 64</td></tr>
+          <tr><td>Kept checkpoint</td><td>best validation loss · seed 42</td></tr>
         </tbody>
       </table>
-      <pre><code>python scripts/train.py --epochs 12 --batch-size 64
-# → models/seismic_cnn1d_best.pt  (+ _last.pt) and artifacts/train_results.json</code></pre>
-      <div class="callout"><b>Concept — train / validation / test.</b> The model <i>learns</i> on train, we <i>tune & pick</i> using validation, and we <i>report honestly</i> on test (data never seen during training). If test data leaks into training, the test score becomes a lie — see section 11.</div>
+      <p>The data is split three ways: the model <em>learns</em> on train, we <em>choose</em> using validation, and we <em>report</em> on test — data it never saw. If test leaks into train, the test score becomes fiction. Hold that thought.</p>
     </section>
 
-    <!-- 8 EVALUATION -->
-    <section class="anchor" id="evaluation">
-      <h2>8 · Evaluation — and how to read it</h2>
-      <p>On the balanced test set the demo model scores:</p>
-      <div class="grid g3">
-        <div class="kpi"><b>97.4%</b><span>accuracy</span></div>
-        <div class="kpi"><b>0.974</b><span>macro F1</span></div>
-        <div class="kpi"><b>0.994</b><span>ROC-AUC</span></div>
-      </div>
-      <figure>
-        <img src="assets/confusion_matrix.png" alt="Confusion matrix showing 593 true noise, 586 true earthquake, with 18 and 14 errors" />
-        <figcaption><b>Confusion matrix.</b> Rows = truth, columns = prediction. The strong diagonal (593, 586) means most windows are classified correctly; off-diagonal (18 false alarms, 14 misses) are the errors.</figcaption>
+    <!-- 8 -->
+    <section class="anchor" id="evaluation" data-title="Evaluation">
+      <span class="num">08 — Evaluation</span>
+      <h2>The numbers, and how to read them</h2>
+      <p>On the balanced test set the demo model reports <span class="datum">97.4%</span> accuracy, a macro-F1 of <span class="datum">0.974</span>, and a ROC-AUC of <span class="datum">0.994</span>. The confusion matrix shows why it looks so clean:</p>
+      <figure class="wide">
+        <img src="assets/confusion_matrix.png" alt="Confusion matrix: 593 true noise, 586 true earthquake, 18 and 14 errors" />
+        <figcaption>Rows are truth, columns are prediction. A strong diagonal (593, 586); only 18 false alarms and 14 misses.</figcaption>
       </figure>
-      <details><summary>▸ Deep dive: what these metrics actually mean</summary>
-        <table>
-          <tbody>
-            <tr><td><b>Precision</b></td><td>Of the windows flagged "earthquake", how many really were? (punishes false alarms)</td></tr>
-            <tr><td><b>Recall</b></td><td>Of the real earthquakes, how many did we catch? (punishes misses)</td></tr>
-            <tr><td><b>F1</b></td><td>Harmonic mean of precision & recall — one balanced number.</td></tr>
-            <tr><td><b>ROC-AUC</b></td><td>Probability the model ranks a random earthquake above a random noise window. 0.5 = coin flip, 1.0 = perfect.</td></tr>
-          </tbody>
-        </table>
-      </details>
-      <figure>
-        <img src="assets/roc_curve.png" alt="ROC curve hugging the top-left corner, AUC 0.994" />
-        <figcaption><b>ROC curve.</b> True-positive rate vs false-positive rate as the decision threshold varies. Hugging the top-left corner (AUC ≈ 0.994) looks excellent — <i>on this balanced test set</i>.</figcaption>
-      </figure>
-      <figure>
+      <p>Read those metrics precisely: <strong>precision</strong> punishes false alarms, <strong>recall</strong> punishes misses, <strong>F1</strong> balances the two, and <strong>ROC-AUC</strong> is the chance the model ranks a random earthquake above a random noise clip. All of them, here, are measured on a tidy fifty-fifty test set.</p>
+      <figure class="wide">
         <img src="assets/prediction_samples.png" alt="Six example windows with predicted labels" />
-        <figcaption><b>Sample predictions.</b> Notice the earthquake examples are quiet, then erupt. That visual pattern is the crux of section 11.</figcaption>
+        <figcaption>Sample predictions. Look at the earthquake rows: quiet, then an eruption. That silhouette is the heart of section 11.</figcaption>
       </figure>
     </section>
 
-    <!-- 9 REGRESSION -->
-    <section class="anchor" id="regression">
-      <h2>9 · Predicting <i>when</i>: P-arrival regression</h2>
-      <p>Detecting "an earthquake is here" is step one. Step two is pinpointing <b>exactly when</b> the P-wave arrives inside the window — useful for estimating warning time and magnitude. The regressor outputs a sample index; error is measured in milliseconds.</p>
-      <div class="grid g3">
-        <div class="kpi"><b>≈23</b><span>samples mean abs. error</span></div>
-        <div class="kpi"><b>≈233 ms</b><span>MAE in time</span></div>
-        <div class="kpi"><b>SmoothL1</b><span>robust regression loss</span></div>
-      </div>
-      <figure>
-        <img src="assets/p_arrival_regression.png" alt="Scatter of predicted vs true P offset and an error histogram" />
-        <figcaption><b>Left:</b> predicted vs. true P offset (points near the diagonal = accurate). <b>Right:</b> error distribution centered near zero. State-of-the-art pickers reach &lt;50 ms, so ~233 ms is a solid baseline, not production-grade.</figcaption>
+    <!-- 9 -->
+    <section class="anchor" id="regression" data-title="Timing">
+      <span class="num">09 — Timing</span>
+      <h2>Not just whether, but when</h2>
+      <p>Pinpointing the P-arrival inside the window matters for estimating warning time and magnitude. The regressor predicts a sample index; error is read in milliseconds. It reaches roughly <span class="datum">23 samples</span> of mean absolute error — about <strong>233 ms</strong>.</p>
+      <figure class="wide">
+        <img src="assets/p_arrival_regression.png" alt="Predicted versus true P offset scatter, and an error histogram" />
+        <figcaption>Left, predictions against truth (near the diagonal is accurate); right, errors clustered near zero. State-of-the-art pickers reach under 50 ms, so this is a fair baseline — not a finished product.</figcaption>
       </figure>
     </section>
 
-    <!-- 10 CONTINUOUS -->
-    <section class="anchor" id="continuous">
-      <h2>10 · Continuous & live inference</h2>
-      <p>A real sensor never stops. <code>continuous_inference.py</code> slides the 10 s window across a long recording (one hop per second), scoring every position. To avoid firing on every blip, it uses an <b>alert rule</b>:</p>
-      <div class="callout"><b>Alert rule:</b> only raise an alert if <code>P(earthquake) ≥ threshold</code> (default 0.85) for <b>N consecutive</b> hops (default 3). This is the false-alarm control real EEW engineers use.</div>
-      <p>Before scoring, continuous data is <b>preprocessed</b> (<code>src/sliding_window.py</code>): detrend → 5% Hann taper → zero-phase 1–20 Hz bandpass → map to E/N/Z → resample to 100 Hz → z-score each window. The <b>live</b> loop (<code>live_stream.py</code>) does the same on the last ~10 s polled from an FDSN station every second (or replays a local file offline).</p>
-      <pre><code>python scripts/download_continuous.py                       # 1 h Ridgecrest M7.1 @ CI.CLC
-python scripts/continuous_inference.py --threshold 0.85 --consecutive 3</code></pre>
-      <p>How well does it hold up on <i>real</i> continuous data? That's the perfect segue to the audit. 👇</p>
+    <!-- 10 -->
+    <section class="anchor" id="continuous" data-title="Continuous & live">
+      <span class="num">10 — Continuous &amp; live</span>
+      <h2>A sensor never stops</h2>
+      <p>Continuous inference slides the ten-second window across a long recording, one hop per second, scoring every position. To avoid firing on every blip, an <strong>alert rule</strong> demands that the earthquake probability stay above a threshold (0.85) for several consecutive hops (3) — the same false-alarm control real early-warning systems use.</p>
+      <p>Before scoring, continuous data is detrended, tapered, band-passed between 1 and 20 Hz, mapped to E/N/Z, resampled to 100 Hz, and z-scored. The live loop does the same on the last ten seconds polled from a station each second. Whether this holds up on real data is exactly the right question — and the answer is uncomfortable.</p>
     </section>
 
-    <!-- 11 AUDIT -->
-    <section class="anchor" id="audit">
-      <h2>11 · The honest audit — what did it <i>really</i> learn?</h2>
-      <p>This is the most important section. A skeptic looked at the "quiet-then-spike" shape of every earthquake example and asked: <b>is the model learning P-wave physics, or a cheap shortcut?</b> Here is how you investigate that — the whole audit is reproducible with <code>python scripts/diagnose_shortcut.py</code>.</p>
+    <!-- 11 -->
+    <section class="anchor" id="audit" data-title="The reckoning">
+      <span class="num">11 — The reckoning</span>
+      <h2>What did it actually learn?</h2>
+      <p class="lead-p">Every earthquake example is quiet, then loud. A careful reader should ask: is the network learning P-wave <em>physics</em>, or an amplitude <em>shortcut</em>? The whole investigation reruns with one command, <code>diagnose_shortcut.py</code>. Here is the trail.</p>
 
-      <h3>Myth 1 — "the flat part is zero-padding"</h3>
-      <p>First hypothesis: maybe the quiet lead-in is fake (literal zeros from trimming). <b>Tested and rejected.</b> Across 800 earthquake traces, 0.0% have an all-zero pre-P segment and only ~0.1% of pre-P samples are exactly zero. The pre-P median amplitude (std ≈ 42 counts) is comparable to real noise traces (≈ 50). It's <b>genuine ambient noise.</b></p>
+      <h3>First, a myth</h3>
+      <p>Maybe the flat lead-in is fake — literal zero-padding from trimming. Tested, and rejected: across 800 earthquake traces, none have an all-zero pre-P segment, and only about a tenth of a percent of pre-P samples are exactly zero. The lead-in is <strong>genuine ambient noise</strong>, roughly the same size as the noise-only traces.</p>
 
-      <h3>The real problem — a normalization artifact</h3>
-      <p>The earthquake coda is ~27× larger than the pre-P noise. Per-window z-scoring divides everything by that large std, so the genuine pre-P noise is squashed to look flat, while pure-noise windows stay uniformly "loud". After normalization:</p>
+      <h3>Then, the real culprit</h3>
+      <p>The earthquake coda is some twenty-seven times larger than its own pre-P noise. Per-window z-scoring divides everything by that large spread, crushing the real pre-P noise until it <em>looks</em> flat — while pure-noise windows stay uniformly loud. After normalization:</p>
       <table>
-        <thead><tr><th>Region (normalized)</th><th>Noise windows</th><th>Earthquake windows</th></tr></thead>
+        <thead><tr><th>Normalized region</th><th>Noise window</th><th>Earthquake window</th></tr></thead>
         <tbody>
-          <tr><td>std of first 1.5 s</td><td>0.99</td><td><b>0.23</b></td></tr>
-          <tr><td>std of last 6.5 s</td><td>0.99</td><td>1.11</td></tr>
+          <tr><td>std of first 1.5 s</td><td class="datum">0.99</td><td class="datum">0.23</td></tr>
+          <tr><td>std of last 6.5 s</td><td class="datum">0.99</td><td class="datum">1.11</td></tr>
         </tbody>
       </table>
-      <figure>
-        <img src="assets/windowing_diagnostic.png" alt="Raw earthquake trace with real pre-P noise vs normalized window looking flat-then-spike" />
-        <figcaption>Top-right: the raw pre-P segment has real wiggles (not zeros). Bottom: after z-scoring, the earthquake window is "flat-then-spike" while the noise window is uniform. The model can separate them on <b>amplitude envelope alone</b>.</figcaption>
+      <figure class="wide">
+        <img src="assets/windowing_diagnostic.png" alt="Raw pre-P noise is real; the normalized window looks flat then spikes" />
+        <figcaption>Top-right: the raw lead-in has real wiggles, not zeros. Bottom: after z-scoring, the earthquake clip is flat-then-spike while noise is uniform. The two are separable on <em>amplitude envelope alone</em>.</figcaption>
       </figure>
 
-      <h3>Proof: a trivial detector nearly matches the CNN</h3>
-      <p>If it's really keying on the envelope, a dumb feature should rival the CNN. It does:</p>
+      <h3>The proof</h3>
+      <p>If the model rides the envelope, a trivial detector should rival it. It does — a single feature (the amplitude of the first 1.5 seconds) comes within two points of the network:</p>
       <table>
         <thead><tr><th>Model</th><th>Accuracy</th><th>ROC-AUC</th></tr></thead>
         <tbody>
-          <tr><td>Threshold on "std of first 1.5 s"</td><td>95.4%</td><td>0.979</td></tr>
-          <tr><td>Logistic regression on 5 envelope features</td><td>95.3%</td><td>0.991</td></tr>
-          <tr><td><b>SeismicCNN1D</b></td><td>97.4%</td><td>0.994</td></tr>
+          <tr><td>Threshold on early-window amplitude</td><td class="datum">95.4%</td><td class="datum">0.979</td></tr>
+          <tr><td>Logistic regression, 5 envelope features</td><td class="datum">95.3%</td><td class="datum">0.991</td></tr>
+          <tr><td>SeismicCNN1D</td><td class="datum">97.4%</td><td class="datum">0.994</td></tr>
         </tbody>
       </table>
-      <figure><img src="assets/shortcut_baseline.png" alt="A single amplitude feature separates the classes; ROC of trivial baseline nearly matches the CNN" /><figcaption>A single hand-coded amplitude feature separates the classes almost as well as the CNN. The network buys only ~2 points.</figcaption></figure>
+      <figure class="wide"><img src="assets/shortcut_baseline.png" alt="One amplitude feature separates the classes; its ROC nearly matches the CNN" /><figcaption>A hand-coded amplitude feature separates the classes almost as well as the whole network.</figcaption></figure>
 
-      <h3>The reckoning: real continuous noise</h3>
-      <p>On the ~10 minutes of quiet noise <i>before</i> the Ridgecrest M7.1 even happens, the model calls it "earthquake" more than half the time:</p>
-      <div class="grid g3">
-        <div class="kpi"><b>0.54</b><span>mean P(eq) on quiet noise</span></div>
-        <div class="kpi" style="border-color:var(--bad)"><b>~1,440</b><span>false alarms / hour @0.85</span></div>
-        <div class="kpi"><b>~10 min</b><span>first "alert" before the quake</span></div>
-      </div>
-      <figure><img src="assets/continuous_false_alarms.png" alt="Probability oscillates near 1 across the quiet pre-event window" /><figcaption>Blue = quiet pre-event window (no earthquake). The probability spikes constantly — the balanced 97% does <b>not</b> transfer to a stream that's 99%+ noise.</figcaption></figure>
+      <h3>The reckoning on real data</h3>
+      <p>On the ten quiet minutes <em>before</em> the Ridgecrest M7.1 even happens, the model calls the silence "earthquake" more than half the time — a mean probability of <span class="datum">0.54</span> and roughly <strong>1,440 false alarms per hour</strong> at threshold 0.85. Its first "alert" fires about ten minutes before the quake exists.</p>
+      <figure class="wide"><img src="assets/continuous_false_alarms.png" alt="Probability oscillates near one across the quiet pre-event window" /><figcaption>Blue marks the quiet pre-event window. The probability spikes throughout it: the balanced 97% does not survive contact with a stream that is 99%+ noise.</figcaption></figure>
+      <figure class="wide"><img src="assets/failure_cases.png" alt="False alarms are noise with a late burst; misses are earthquakes with uniform energy" /><figcaption>False alarms are noise that happens to swell late; misses are earthquakes with even energy — exactly what an envelope detector gets wrong.</figcaption></figure>
 
-      <h3>Failure cases confirm the mechanism</h3>
-      <figure><img src="assets/failure_cases.png" alt="False alarms are noise with a late burst; misses are earthquakes with uniform energy" /><figcaption>False alarms = noise that happens to have a quiet-start/loud-end shape. Misses = earthquakes with roughly uniform energy. Exactly what an <i>envelope</i> detector would get wrong.</figcaption></figure>
+      <h3>And a quieter bug</h3>
+      <p>Because the split is made at the window level with no grouping, about a quarter of test windows share their earthquake with a training window, and 94% share a station. The score is inflated by memorization.</p>
 
-      <h3>Bonus bug: data leakage</h3>
-      <p>Because the split is at the <b>window</b> level with no grouping, <b>24.9%</b> of test windows share the same seismic event as a training window and <b>94.1%</b> share the same station — the test score is inflated by memorization.</p>
-
-      <div class="callout bad"><b>Lesson.</b> Great-looking metrics can measure the wrong thing. Always ask: could a trivial baseline do this? Does it hold on realistic (imbalanced, continuous) data? Is my train/test split leak-free? Report <b>false-alarms per hour</b> and <b>PR-AUC</b>, not just balanced accuracy.</div>
-      <p class="muted">Full write-up: <a href="shortcut_and_leakage_analysis.md">docs/shortcut_and_leakage_analysis.md</a>.</p>
+      <div class="note"><span class="lab">The lesson</span>Beautiful metrics can measure the wrong thing. Ask whether a trivial baseline could match you; whether the result holds on realistic, imbalanced, continuous data; whether the split is truly leak-free. Report false alarms per hour, not just balanced accuracy. <a href="shortcut_and_leakage_analysis.md">The full write-up is here.</a></p></div>
     </section>
 
-    <!-- 12 CLI -->
-    <section class="anchor" id="cli">
-      <h2>12 · CLI cheat sheet</h2>
-      <pre><code># Setup
-python -m venv .venv &amp;&amp; source .venv/bin/activate
+    <!-- 12 -->
+    <section class="anchor" id="cli" data-title="Commands">
+      <span class="num">12 — Commands</span>
+      <h2>The whole thing, in a terminal</h2>
+      <pre><code>python -m venv .venv &amp;&amp; source .venv/bin/activate
 pip install -r requirements.txt
 
-# Classification pipeline
 python scripts/download_stead.py --test-only
 python scripts/prepare_windows.py --prefer-split test
 python scripts/train.py --epochs 12 --batch-size 64
 python scripts/evaluate.py
 python scripts/predict.py --index 0
 
-# Regression
 python scripts/prepare_regression.py --prefer-split test
 python scripts/train_regression.py --epochs 15
 python scripts/evaluate_regression.py
 
-# Continuous & live
 python scripts/download_continuous.py
 python scripts/continuous_inference.py --threshold 0.85 --consecutive 3
-python scripts/live_stream.py --demo-replay data/continuous/ridgecrest_m71_2019.mseed
-
-# Reproduce the audit
 python scripts/diagnose_shortcut.py</code></pre>
-      <p class="muted">Every script supports <code>-h/--help</code>. Full flag tables are in the project <a href="../README.md">README</a>.</p>
+      <p>Every script answers <code>--help</code>. The full flag reference lives in the <a href="../README.md">README</a>.</p>
     </section>
 
-    <!-- 13 GLOSSARY -->
-    <section class="anchor" id="glossary">
-      <h2>13 · Glossary</h2>
-      <div class="grid g2">
-        <div class="card"><b>Seismogram</b><br><span class="muted">A recording of ground motion over time.</span></div>
-        <div class="card"><b>P-wave / S-wave</b><br><span class="muted">Fast-weak first wave / slow-strong destructive wave.</span></div>
-        <div class="card"><b>Phase pick</b><br><span class="muted">The labeled sample index where a wave arrives.</span></div>
-        <div class="card"><b>E / N / Z channels</b><br><span class="muted">East, North, Vertical components of motion.</span></div>
-        <div class="card"><b>Window</b><br><span class="muted">A fixed-length slice (here 10 s / 1000 samples) fed to the model.</span></div>
-        <div class="card"><b>Z-score normalization</b><br><span class="muted">(x − mean) / std — removes absolute scale.</span></div>
-        <div class="card"><b>1D CNN</b><br><span class="muted">Convolution over the time axis to detect temporal patterns.</span></div>
-        <div class="card"><b>ROC-AUC / PR-AUC</b><br><span class="muted">Ranking-quality metrics; PR-AUC is better for rare-positive streams.</span></div>
-        <div class="card"><b>FDSN</b><br><span class="muted">Standard web API for requesting seismic waveform data.</span></div>
-        <div class="card"><b>STA/LTA</b><br><span class="muted">Classic short-vs-long-term-average trigger; the baseline to beat.</span></div>
-        <div class="card"><b>Data leakage</b><br><span class="muted">Test info sneaking into training, inflating scores.</span></div>
-        <div class="card"><b>EEW</b><br><span class="muted">Earthquake Early Warning — detect P, warn before S.</span></div>
-      </div>
+    <!-- 13 -->
+    <section class="anchor" id="glossary" data-title="Glossary">
+      <span class="num">13 — Glossary</span>
+      <h2>A short lexicon</h2>
+      <table>
+        <tbody>
+          <tr><td><strong>Seismogram</strong></td><td>a recording of ground motion over time</td></tr>
+          <tr><td><strong>P / S wave</strong></td><td>fast-faint first arrival / slow-strong destructive arrival</td></tr>
+          <tr><td><strong>Phase pick</strong></td><td>the labeled sample where a wave arrives</td></tr>
+          <tr><td><strong>E / N / Z</strong></td><td>East, North, Vertical components of motion</td></tr>
+          <tr><td><strong>Window</strong></td><td>a fixed 10 s / 1000-sample slice fed to the model</td></tr>
+          <tr><td><strong>Z-score</strong></td><td>(x − mean) / std — removes absolute scale</td></tr>
+          <tr><td><strong>1-D CNN</strong></td><td>convolution along time to detect temporal shapes</td></tr>
+          <tr><td><strong>ROC / PR-AUC</strong></td><td>ranking-quality scores; PR-AUC suits rare positives</td></tr>
+          <tr><td><strong>FDSN</strong></td><td>the web standard for requesting seismic data</td></tr>
+          <tr><td><strong>STA/LTA</strong></td><td>the classic trigger a learned model must beat</td></tr>
+          <tr><td><strong>Leakage</strong></td><td>test information seeping into training</td></tr>
+          <tr><td><strong>EEW</strong></td><td>Earthquake Early Warning</td></tr>
+        </tbody>
+      </table>
     </section>
 
-    <!-- 14 QUIZ -->
-    <section class="anchor" id="quiz">
-      <h2>14 · Test yourself</h2>
-      <p class="muted">Click an answer to check it. Explanations appear after you choose.</p>
-      <div id="quiz"></div>
-      <div class="card" id="score" style="display:none;text-align:center"><b style="font-size:1.4rem" id="scoreTxt"></b></div>
+    <!-- 14 -->
+    <section class="anchor" id="quiz" data-title="A test">
+      <span class="num">14 — A test</span>
+      <h2>Six questions</h2>
+      <p>Choose an answer to reveal whether it holds.</p>
+      <div class="quiz" id="quiz"></div>
+      <div id="score"></div>
     </section>
 
     <footer>
-      Built as a study companion for the <a href="../README.md">P-Wave Detection</a> project · data © STEAD ·
-      code MIT. Numbers on this page are reproduced from <code>scripts/evaluate.py</code>,
-      <code>evaluate_regression.py</code>, and <code>diagnose_shortcut.py</code>.
+      A study companion for the P-Wave Detection project · data © STEAD · code MIT.<br>
+      Figures and numbers reproduced from evaluate.py, evaluate_regression.py and diagnose_shortcut.py.<br>
+      <a href="../README.md">Back to the repository README →</a>
     </footer>
   </main>
 </div>
 
 <script>
-/* ---------- theme ---------- */
-const root=document.documentElement;
-const saved=localStorage.getItem('pw-theme');
-if(saved) root.setAttribute('data-theme',saved);
-document.getElementById('themeBtn').onclick=()=>{
-  const cur=root.getAttribute('data-theme')==='light'?'':'light';
-  if(cur) root.setAttribute('data-theme',cur); else root.removeAttribute('data-theme');
-  localStorage.setItem('pw-theme',cur);
-};
-
-/* ---------- scroll progress + scrollspy ---------- */
-const bar=document.getElementById('progress');
-const links=[...document.querySelectorAll('#nav a')];
-const sections=links.map(a=>document.querySelector(a.getAttribute('href'))).filter(Boolean);
+/* progress bar */
+const bar=document.getElementById('bar');
+/* build rail + toc from sections */
+const secs=[...document.querySelectorAll('main section')];
+const rail=document.getElementById('rail'), toc=document.getElementById('toc');
+secs.forEach((s,i)=>{
+  const n=String(i+1).padStart(2,'0'), t=s.dataset.title||s.id;
+  const a=document.createElement('a'); a.href='#'+s.id; a.textContent=n; a.dataset.i=i; rail.appendChild(a);
+  const l=document.createElement('a'); l.href='#'+s.id; l.innerHTML='<span class="tn">'+n+'</span>'+t; toc.appendChild(l);
+});
+const railLinks=[...rail.children];
 function onScroll(){
   const h=document.documentElement;
-  const p=h.scrollTop/(h.scrollHeight-h.clientHeight);
-  bar.style.width=(p*100)+'%';
-  let idx=0;
-  sections.forEach((s,i)=>{ if(s.getBoundingClientRect().top<=120) idx=i; });
-  links.forEach(l=>l.classList.remove('active'));
-  if(links[idx]) links[idx].classList.add('active');
+  bar.style.width=(h.scrollTop/(h.scrollHeight-h.clientHeight)*100)+'%';
+  let idx=0; secs.forEach((s,i)=>{ if(s.getBoundingClientRect().top<=140) idx=i; });
+  railLinks.forEach((a,i)=>a.classList.toggle('on',i===idx));
 }
 document.addEventListener('scroll',onScroll,{passive:true}); onScroll();
 
-/* ---------- warning-time calculator ---------- */
-const Vp=6.0, Vs=3.5; // km/s
-const dist=document.getElementById('dist');
-const els={distOut:distOut,pOut:pOut,sOut:sOut,warnOut:warnOut,barP:barP,barS:barS};
-function calc(){
-  const d=+dist.value;
-  const tp=d/Vp, ts=d/Vs, warn=ts-tp;
-  els.distOut.value=d;
-  els.pOut.value=tp.toFixed(1);
-  els.sOut.value=ts.toFixed(1);
-  els.warnOut.value=warn.toFixed(1);
-  const max=300/Vs;
-  els.barP.style.width=Math.min(100,(tp/max)*100)+'%';
-  els.barS.style.width=Math.min(100,(ts/max)*100)+'%';
-}
-dist.addEventListener('input',calc); calc();
+/* warning-time calculator */
+const Vp=6.0,Vs=3.5,dist=document.getElementById('dist');
+const dOut=document.getElementById('dOut'),pOut=document.getElementById('pOut'),
+      sOut=document.getElementById('sOut'),wOut=document.getElementById('wOut');
+function calc(){const d=+dist.value,tp=d/Vp,ts=d/Vs;
+  dOut.value=d;pOut.value=tp.toFixed(1);sOut.value=ts.toFixed(1);wOut.value=(ts-tp).toFixed(1);}
+dist.addEventListener('input',calc);calc();
 
-/* ---------- quiz ---------- */
-const QUESTIONS=[
- {q:"Why does detecting the P-wave give useful early warning?",
-  a:["It is the most destructive wave","It arrives before the slower, destructive S-wave","It predicts future earthquakes","It travels only along the surface"],
-  c:1, e:"The fast, weak P-wave outruns the slow, destructive S-wave — the gap is your warning time."},
- {q:"What shape is a single model input?",
-  a:["(1000, 1)","(3, 6000)","(3, 1000) — 3 channels × 10 s @ 100 Hz","(2, 100)"],
-  c:2, e:"10 s × 100 Hz = 1000 samples, across E/N/Z = 3 channels."},
- {q:"The 'flat' part before an earthquake in the plots is…",
-  a:["Literal zero-padding","Genuine ambient noise squashed by per-window z-scoring","A plotting bug","The S-wave"],
-  c:1, e:"It's real noise (0% all-zero); per-window normalization by the huge coda makes it look flat."},
- {q:"Why is 97.4% balanced accuracy misleading here?",
-  a:["The model is too small","A trivial amplitude feature nearly matches it, and it false-alarms constantly on real continuous noise","Accuracy is never useful","The test set is too large"],
-  c:1, e:"A single envelope feature hits ~95%, and on quiet real data the model fires ~1,440 false alarms/hour."},
- {q:"What causes the data leakage in the split?",
-  a:["Too few epochs","Splitting at the window level with no event/station grouping","Using z-score normalization","Downloading from Zenodo"],
-  c:1, e:"25% of test windows share an event and 94% share a station with training — memorization inflates the score."},
- {q:"What is the alert rule for continuous inference?",
-  a:["Fire whenever P(eq) > 0.5 once","Fire when P(eq) ≥ threshold for N consecutive hops","Fire once per hour","Never fire automatically"],
-  c:1, e:"Requiring N consecutive high-probability hops suppresses one-off false triggers."},
+/* quiz */
+const Q=[
+ {q:"Why does detecting the P-wave give early warning?",a:["It is the most destructive wave","It arrives before the slower, destructive S-wave","It predicts future earthquakes","It travels only along the surface"],c:1,e:"The fast, faint P-wave outruns the slow, destructive S-wave; the gap is your warning."},
+ {q:"What is one model input's shape?",a:["(1000, 1)","(3, 6000)","(3, 1000): 3 channels × 10 s at 100 Hz","(2, 100)"],c:2,e:"10 s × 100 Hz = 1000 samples across E/N/Z."},
+ {q:"The flat part before a quake in the plots is…",a:["literal zero-padding","genuine noise squashed by per-window z-scoring","a plotting bug","the S-wave"],c:1,e:"It is real noise; per-window normalization by the huge coda makes it look flat."},
+ {q:"Why is 97.4% balanced accuracy misleading?",a:["the model is too small","a trivial amplitude feature nearly matches it and it false-alarms constantly on real noise","accuracy is never useful","the test set is too large"],c:1,e:"One envelope feature reaches ~95%, and on quiet real data the model fires ~1,440 false alarms/hour."},
+ {q:"What causes the leakage?",a:["too few epochs","splitting at the window level with no event/station grouping","z-scoring","downloading from Zenodo"],c:1,e:"A quarter of test windows share an event and 94% share a station with training."},
+ {q:"The continuous alert rule fires when…",a:["P(eq) > 0.5 once","P(eq) ≥ threshold for N consecutive hops","once per hour","never automatically"],c:1,e:"Requiring several consecutive high-probability hops suppresses one-off triggers."},
 ];
-let answered=0, correct=0;
-const quiz=document.getElementById('quiz');
-QUESTIONS.forEach((item,qi)=>{
-  const box=document.createElement('div'); box.className='q';
-  box.innerHTML='<b>'+(qi+1)+'. '+item.q+'</b>';
-  item.a.forEach((opt,oi)=>{
-    const el=document.createElement('span'); el.className='opt'; el.textContent=opt;
-    el.onclick=()=>{
-      if(box.classList.contains('answered')) return;
-      box.classList.add('answered'); answered++;
-      const opts=box.querySelectorAll('.opt');
-      opts[item.c].classList.add('correct');
-      if(oi===item.c){correct++;} else {el.classList.add('wrong');}
-      if(answered===QUESTIONS.length){
-        const s=document.getElementById('score'); s.style.display='block';
-        document.getElementById('scoreTxt').textContent='You scored '+correct+' / '+QUESTIONS.length+(correct===QUESTIONS.length?'  🎉 Seismic!':'  — revisit the sections above and retry.');
-      }
-    };
+let done=0,right=0;const quiz=document.getElementById('quiz');
+Q.forEach((it,qi)=>{
+  const box=document.createElement('div');box.className='item';
+  box.innerHTML='<p class="qq">'+(qi+1)+'. '+it.q+'</p>';
+  it.a.forEach((opt,oi)=>{
+    const el=document.createElement('span');el.className='opt';el.textContent=opt;
+    el.onclick=()=>{if(box.classList.contains('done'))return;box.classList.add('done');done++;
+      box.querySelectorAll('.opt')[it.c].classList.add('correct');
+      if(oi===it.c)right++;else el.classList.add('wrong');
+      if(done===Q.length)document.getElementById('score').textContent='Score '+right+' / '+Q.length+(right===Q.length?' — seismic.':' — worth another pass above.');};
     box.appendChild(el);
   });
-  const exp=document.createElement('div'); exp.className='exp'; exp.innerHTML='💡 '+item.e; box.appendChild(exp);
+  const ex=document.createElement('p');ex.className='exp';ex.textContent=it.e;box.appendChild(ex);
   quiz.appendChild(box);
 });
 </script>
