@@ -382,7 +382,7 @@ python scripts/diagnose_shortcut.py</code></pre>
       <span class="num">14 — A test</span>
       <h2>Six questions</h2>
       <p>Choose an answer to reveal whether it holds.</p>
-      <div class="quiz" id="quiz"></div>
+      <div class="quiz" id="quizbox"></div>
       <div id="score"></div>
     </section>
 
@@ -431,7 +431,7 @@ const Q=[
  {q:"What causes the leakage?",a:["too few epochs","splitting at the window level with no event/station grouping","z-scoring","downloading from Zenodo"],c:1,e:"A quarter of test windows share an event and 94% share a station with training."},
  {q:"The continuous alert rule fires when…",a:["P(eq) > 0.5 once","P(eq) ≥ threshold for N consecutive hops","once per hour","never automatically"],c:1,e:"Requiring several consecutive high-probability hops suppresses one-off triggers."},
 ];
-let done=0,right=0;const quiz=document.getElementById('quiz');
+let done=0,right=0;const quiz=document.getElementById('quizbox');
 Q.forEach((it,qi)=>{
   const box=document.createElement('div');box.className='item';
   box.innerHTML='<p class="qq">'+(qi+1)+'. '+it.q+'</p>';
