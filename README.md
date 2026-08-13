@@ -12,6 +12,8 @@ regress the **P-wave arrival time** inside that window — trained on waveforms 
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-ee4c2c)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
+📚 **New here? Start with the [interactive study guide](docs/index.html)** — a self-contained web page that teaches this project in depth (open `docs/index.html` in a browser, or serve it with GitHub Pages).
+
 </div>
 
 ```text
