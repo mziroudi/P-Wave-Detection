@@ -127,3 +127,75 @@ event/station/trace. Measured overlap between train and test windows:
 3. **Show failure cases** in the README, not only successes.
 4. **Grouped splitting** by event and station; add an **STA/LTA baseline** and an
    **inference-latency** benchmark (all still open).
+
+## Update: implementing the fixes (and what they revealed)
+
+Recommendations 1, 2 and 4 above were then implemented and measured. The results
+are more instructive than a clean success would have been.
+
+Reproduce with:
+
+```bash
+python scripts/prepare_windows.py --prefer-split test --group-by event --norm zscore --out-dir data/windows_gz
+python scripts/prepare_windows.py --prefer-split test --group-by event --norm agc    --out-dir data/windows_ga
+python scripts/train.py --windows-dir data/windows_gz --model-name cnn_grouped_zscore
+python scripts/train.py --windows-dir data/windows_ga --model-name cnn_grouped_agc
+python scripts/evaluate_baselines.py --checkpoint models/cnn_grouped_agc_best.pt --norm agc --tag after_agc
+```
+
+### 1. Leakage fix (event-grouped split)
+
+`prepare_windows.py --group-by event` uses `GroupShuffleSplit` so no seismic event
+appears in both train and test. Effect on the balanced number:
+
+| Split | Balanced test accuracy |
+|---|---|
+| Window-level (leaky) | 97.4% |
+| Event-grouped (leak-free) | **96.9%** |
+
+Leakage was real but **not** the main inflator — the shortcut was.
+
+### 2. Normalization fix (AGC) — the shortcut *is* removed
+
+`--norm agc` applies Automatic Gain Control (divide by local RMS over ~1 s, then
+z-score), flattening the amplitude envelope. It works as intended:
+
+| Representation | `early_std` shortcut AUC | first-1.5 s std (noise / eq) | Balanced acc |
+|---|---|---|---|
+| grouped, z-score | 0.986 | 1.02 / 0.20 | 96.9% |
+| grouped, **AGC** | **0.613** | 0.99 / 0.96 | 95.0% |
+
+The trivial amplitude feature can no longer separate the classes, the two classes
+now have equal early-window energy, and accuracy falls to a more honest 95.0%.
+
+### 3. The uncomfortable result — it still doesn't transfer
+
+STA/LTA is now a permanent baseline (`scripts/evaluate_baselines.py`, `src/baselines.py`),
+reported on the same continuous hour. False alarms on the ~10 quiet minutes before
+the Ridgecrest M7.1:
+
+| Detector | False alarms/hr (quiet) | Mean P(eq) on quiet noise | Detects M7.1 |
+|---|---|---|---|
+| Original CNN (leaky, z-score) | ~1,416 | 0.54 | yes |
+| Leak-free CNN (grouped, z-score) | ~1,248 | 0.50 | yes |
+| Shortcut-fixed CNN (grouped, AGC) | ~1,500 | 0.58 | yes |
+| **Classical STA/LTA** | **~126** | — | yes |
+
+**Removing the diagnosed shortcut did not reduce continuous false alarms.** The
+fixed model still calls ambient noise "earthquake" most of the time, and a
+decades-old STA/LTA trigger beats every CNN variant by ~12×.
+
+### Diagnosis of the remaining gap
+
+The problem is now **domain shift**, not the envelope shortcut: STEAD's curated
+"noise" class (isolated, hand-picked windows) does not resemble real continuous
+ambient noise, so a model trained to separate STEAD-noise from STEAD-earthquake
+does not generalize to a live stream — even once the amplitude crutch is gone. The
+right next iteration is to **train on realistic continuous noise** (mine hard
+negatives from long quiet streams / multi-day, multi-station data), not to keep
+adjusting normalization.
+
+> Caveat: the Ridgecrest pre-event window is an active aftershock sequence, so some
+> triggers are genuine small events. But the CNN's mean probability (~0.54–0.58)
+> across that window indicates it fires on ambient noise, and STA/LTA on identical
+> data is ~12× lower.

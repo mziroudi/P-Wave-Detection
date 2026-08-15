@@ -22,6 +22,52 @@ Sensor stream ──► 10 s moving window ──► 1D CNN ──► Noise | Ea
 
 ---
 
+## The story this project actually tells
+
+The interesting result here is not a leaderboard number — it's a debugging arc that most
+portfolio projects never show:
+
+> **Shipped a 97.4% classifier → proved it was riding a shortcut → fixed the shortcut →
+> and then discovered the fix wasn't enough, because the real problem was somewhere else.**
+
+<img src="docs/assets/before_after_comparison.png" alt="Before/after: false alarms and balanced accuracy across model variants" />
+
+| Stage | Balanced test acc | `early_std` shortcut AUC | False alarms/hr on quiet continuous data |
+|-------|:---:|:---:|:---:|
+| Original (window-level split, z-score) | 97.4% | 0.986 | ~1,416 |
+| Leakage-free (event-grouped split, z-score) | 96.9% | 0.986 | ~1,248 |
+| Shortcut-fixed (grouped split, **AGC** normalization) | 95.0% | **0.613** | ~1,500 |
+| **Classical STA/LTA baseline** | — | — | **~126** |
+
+What each step taught:
+
+1. **The 97.4% was mostly a shortcut.** A single hand-coded feature — the amplitude of the
+   first 1.5 s of the window — scored 95.4% (0.979 AUC). Per-window z-scoring made earthquake
+   clips read as "quiet-then-loud" and noise clips as "uniform," so the network learned an
+   amplitude envelope, not P-wave morphology. [Full audit ›](docs/shortcut_and_leakage_analysis.md)
+2. **Leakage was real but minor.** An event-grouped split (no earthquake shared between train
+   and test) only moved accuracy 97.4% → 96.9%. Leakage wasn't the main inflator; the shortcut was.
+3. **The shortcut is now fixed.** Swapping z-score for **AGC** (automatic gain control, which
+   flattens the amplitude envelope) collapsed the shortcut feature from 0.986 → 0.613 AUC and
+   dropped balanced accuracy to a more honest 95.0% — the model now has to work for it.
+4. **But the detector still isn't trustworthy.** On ~10 minutes of quiet continuous data the
+   fixed model still fires **~1,500 false alarms/hour** (mean P(eq) ≈ 0.58 on ambient noise),
+   while a decades-old **STA/LTA trigger manages ~126/hr and also catches the M7.1**. Removing
+   the shortcut did not close the gap.
+
+**Honest current limitation.** The dominant remaining problem is *domain shift*: STEAD's
+curated "noise" class is not representative of real continuous ambient noise, so a model trained
+on it — even without the envelope shortcut — over-fires in the field. The next iteration is to
+train on realistic continuous noise (mine hard negatives from long quiet streams), not to keep
+tuning normalization. Until then, the classical STA/LTA baseline wins, and this repo says so.
+
+<sub>Caveat: the Ridgecrest pre-event window is an active aftershock sequence, so a fraction of
+triggers are genuine small events. But a mean CNN probability of ~0.54–0.58 across that window
+indicates firing on ambient noise, and STA/LTA on the identical data is ~12× lower. Reproduce
+every number with `python scripts/evaluate_baselines.py` and `python scripts/diagnose_shortcut.py`.</sub>
+
+---
+
 ## Table of contents
 
 - [What this is](#what-this-is)
@@ -416,8 +462,9 @@ Every script accepts `-h/--help`. Key flags and defaults:
 | `download_stead.py` | `--source {subsample,official-info,both}` (subsample), `--test-only`, `--force` | `data/stead_subsample/*.hdf5` + index CSV |
 | `download_continuous.py` | `--event ridgecrest`, `--client/--network/--station`, `--pre-event-s 600`, `--duration-s 3600` | `data/continuous/ridgecrest_m71_2019.{mseed,json}` |
 | `visualize_waveforms.py` | `--n-earthquake 3`, `--n-noise 2`, `--out-dir artifacts/waveforms` | per-trace + comparison PNGs |
-| `prepare_windows.py` | `--source {subsample,official}`, `--prefer-split {train,test,all}` (all), `--max-earthquake 4000`, `--max-noise 4000`, `--max-per-class 5000`, `--seed 42` | `data/windows/{train,val,test}` + `summary.json` |
-| `train.py` | `--epochs 12`, `--batch-size 64`, `--lr 1e-3`, `--weight-decay 1e-4`, `--seed 42` | `models/seismic_cnn1d_{best,last}.pt`, `artifacts/train_results.json` |
+| `prepare_windows.py` | `--source {subsample,official}`, `--prefer-split {train,test,all}` (all), `--max-earthquake 4000`, `--max-noise 4000`, `--max-per-class 5000`, `--norm {zscore,agc}`, `--group-by {none,event,station}`, `--seed 42` | `data/windows/{train,val,test}` + `summary.json` |
+| `train.py` | `--epochs 12`, `--batch-size 64`, `--lr 1e-3`, `--weight-decay 1e-4`, `--model-name seismic_cnn1d`, `--seed 42` | `models/<model-name>_{best,last}.pt`, `artifacts/train_results.json` |
+| `evaluate_baselines.py` | `--checkpoint …`, `--norm {zscore,agc}`, `--sta-s 1.0`, `--lta-s 20.0`, `--thr-on 4.0`, `--tag cnn` | CNN vs STA/LTA `artifacts/baselines/<tag>.{json,png}` |
 | `evaluate.py` | `--checkpoint models/seismic_cnn1d_best.pt`, `--split {val,test}` (test), `--batch-size 128` | `artifacts/{confusion_matrix,roc_curve,prediction_samples}.png`, `eval_metrics.json` |
 | `predict.py` | `--checkpoint …best.pt`, `--index 0` | printed prediction |
 | `prepare_regression.py` | `--prefer-split {train,test,all}` (test), `--max-earthquake 4000`, `--max-windows 8000`, `--n-jitters 3` | `data/windows_regression/{train,val,test}` |
@@ -479,21 +526,21 @@ Directory layout (all under the repo root, auto-created by `ensure_dirs()`): `da
 
 ## Production roadmap
 
-Moving from this prototype to a credible EEW system requires closing the gaps surfaced by the
-audit, in priority order:
+Several audit items are now **done** (see [the story](#the-story-this-project-actually-tells)):
+✅ envelope shortcut broken via AGC, ✅ event-grouped leakage-free split, ✅ failure cases
+published, ✅ **STA/LTA baseline** (`scripts/evaluate_baselines.py`), ✅ continuous
+false-alarm reporting. What that work revealed reorders the remaining priorities:
 
-1. **Break the envelope shortcut** — consistent/global normalization instead of per-window
-   z-score, amplitude/gain augmentation, and envelope-matched hard negatives so absolute and
-   relative energy stop being informative.
-2. **Evaluate like production** — report false alarms per 24 h of quiet noise, switch the
-   primary metric to **PR-AUC**, and measure detection latency on continuous recordings.
-3. **Show failure cases** — publish representative false alarms and misses, not only successes.
-4. **Grouped, leakage-free splits** — split by event *and* station.
-5. **Classical baseline** — implement **STA/LTA** on the same test set and beat it on both MAE
-   and latency before claiming the CNN earns its complexity.
-6. **Latency & edge deployment** — benchmark per-window inference on commodity CPUs, export to
+1. **Close the domain-shift gap (the real blocker).** Removing the shortcut did *not* reduce
+   continuous false alarms, because STEAD's curated noise ≠ real ambient noise. Train on
+   realistic continuous noise — mine hard negatives from long, quiet, multi-station streams.
+2. **Measure over a realistic horizon** — run continuous inference over multi-day, multi-station
+   data to get a trustworthy false-alarms-per-day, and switch the primary metric to **PR-AUC**.
+3. **Beat STA/LTA cleanly** — the CNN must undercut ~126 false alarms/hour *and* match detection
+   before its complexity is justified; today it does not.
+4. **Latency & edge deployment** — benchmark per-window inference on commodity CPUs, export to
    ONNX/TensorRT, and replace the HTTP poller with a true streaming feed (SeedLink/WebSocket).
-7. **Engineering rigor** — pin dependencies, add k-fold cross-validation with variance
+5. **Engineering rigor** — pin dependencies, add k-fold cross-validation with variance
    reporting, unit-test the windowing/indexing logic, and wire up CI.
 
 ## Citation

@@ -329,7 +329,22 @@
       <h3>And a quieter bug</h3>
       <p>Because the split is made at the window level with no grouping, about a quarter of test windows share their earthquake with a training window, and 94% share a station. The score is inflated by memorization.</p>
 
-      <div class="note"><span class="lab">The lesson</span>Beautiful metrics can measure the wrong thing. Ask whether a trivial baseline could match you; whether the result holds on realistic, imbalanced, continuous data; whether the split is truly leak-free. Report false alarms per hour, not just balanced accuracy. <a href="shortcut_and_leakage_analysis.md">The full write-up is here.</a></p></div>
+      <h3>Then the fixes — and the twist</h3>
+      <p>Diagnosis is cheap; the honest part is what happens when you actually fix it. Two culprits were addressed and measured. An <strong>event-grouped split</strong> (no earthquake shared across train and test) moved accuracy only 97.4% → 96.9% — leakage was real but minor. Swapping z-scoring for <strong>AGC</strong> (automatic gain control, which flattens the amplitude envelope) genuinely killed the shortcut: the trivial early-amplitude feature collapsed from <span class="datum">0.986</span> to <span class="datum">0.613</span> AUC, the two classes ended with equal early-window energy, and honest accuracy settled at 95.0%. The model could no longer cheat.</p>
+      <p>Then the reckoning returned. The shortcut-free model still fired <strong>~1,500 false alarms/hour</strong> on quiet continuous data — while a decades-old <strong>STA/LTA</strong> trigger managed <strong>~126/hour</strong> and still caught the M7.1.</p>
+      <figure class="wide"><img src="assets/before_after_comparison.png" alt="Before/after: false alarms and balanced accuracy across model variants, with STA/LTA baseline" /><figcaption>Fixing the diagnosed shortcut lowered balanced accuracy toward honesty but did <em>not</em> reduce continuous false alarms. Classical STA/LTA beats every CNN variant by ~12×.</figcaption></figure>
+      <table>
+        <thead><tr><th>Detector</th><th>Balanced acc</th><th>Shortcut AUC</th><th>False alarms/hr</th></tr></thead>
+        <tbody>
+          <tr><td>Original (leaky, z-score)</td><td class="datum">97.4%</td><td class="datum">0.986</td><td class="datum">~1,416</td></tr>
+          <tr><td>Leakage-free (grouped, z-score)</td><td class="datum">96.9%</td><td class="datum">0.986</td><td class="datum">~1,248</td></tr>
+          <tr><td>Shortcut-fixed (grouped, AGC)</td><td class="datum">95.0%</td><td class="datum">0.613</td><td class="datum">~1,500</td></tr>
+          <tr><td>Classical STA/LTA</td><td class="datum">—</td><td class="datum">—</td><td class="datum">~126</td></tr>
+        </tbody>
+      </table>
+      <p><strong>Fixing the shortcut did not fix the detector.</strong> The remaining gap is <em>domain shift</em>: STEAD's curated noise is not real continuous ambient noise, so the model over-fires in the field even without the amplitude crutch. The next iteration is to train on realistic continuous noise — not to keep tuning normalization.</p>
+
+      <div class="note"><span class="lab">The lesson</span>Beautiful metrics can measure the wrong thing — and the first fix is rarely the last. Ask whether a trivial baseline could match you; whether the result holds on realistic, imbalanced, continuous data; whether a classical baseline still beats you after your fix. Report false alarms per hour against STA/LTA, not just balanced accuracy. <a href="shortcut_and_leakage_analysis.md">Full analysis</a> · <a href="diagnosis_post.md">the story as a post</a>.</p></div>
     </section>
 
     <!-- 12 -->
@@ -351,7 +366,12 @@ python scripts/evaluate_regression.py
 
 python scripts/download_continuous.py
 python scripts/continuous_inference.py --threshold 0.85 --consecutive 3
-python scripts/diagnose_shortcut.py</code></pre>
+python scripts/diagnose_shortcut.py
+
+# Leakage-free + shortcut-free retrain, and the CNN-vs-STA/LTA baseline
+python scripts/prepare_windows.py --prefer-split test --group-by event --norm agc --out-dir data/windows_ga
+python scripts/train.py --windows-dir data/windows_ga --model-name cnn_grouped_agc
+python scripts/evaluate_baselines.py --checkpoint models/cnn_grouped_agc_best.pt --norm agc</code></pre>
       <p>Every script answers <code>--help</code>. The full flag reference lives in the <a href="../README.md">README</a>.</p>
     </section>
 
