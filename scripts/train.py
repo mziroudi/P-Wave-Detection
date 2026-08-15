@@ -60,6 +60,11 @@ def main() -> None:
     parser.add_argument("--weight-decay", type=float, default=1e-4)
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--model-name",
+        default="seismic_cnn1d",
+        help="Base name for checkpoints (writes <name>_best.pt / <name>_last.pt in models/)",
+    )
     args = parser.parse_args()
     ensure_dirs()
 
@@ -99,8 +104,8 @@ def main() -> None:
 
     history = []
     best_val = float("inf")
-    best_path = MODELS_DIR / "seismic_cnn1d_best.pt"
-    last_path = MODELS_DIR / "seismic_cnn1d_last.pt"
+    best_path = MODELS_DIR / f"{args.model_name}_best.pt"
+    last_path = MODELS_DIR / f"{args.model_name}_last.pt"
 
     t0 = time.time()
     for epoch in range(1, args.epochs + 1):

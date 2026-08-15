@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GroupShuffleSplit, train_test_split
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -18,6 +18,31 @@ from src.dataset import save_window_cache
 from src.stead_io import iter_official_traces, iter_subsample_traces
 from src.utils import WINDOWS_DIR, ensure_dirs
 from src.windows import build_window_arrays
+
+
+def _parse_group(trace_name: str, group_by: str) -> str:
+    """event = timestamp token (STATION.NET_YYYYMMDDhhmmss_EV); station = leading token."""
+    if group_by == "station":
+        return trace_name.split(".")[0]
+    parts = trace_name.split("_")
+    return parts[1] if len(parts) > 1 else trace_name
+
+
+def _groups_from_meta(meta: list[dict], group_by: str) -> np.ndarray:
+    return np.array([_parse_group(m["trace_name"], group_by) for m in meta])
+
+
+def _report_group_leakage(meta, train_idx, test_idx, group_by: str) -> None:
+    ev = lambda i: _parse_group(meta[i]["trace_name"], "event")
+    stn = lambda i: _parse_group(meta[i]["trace_name"], "station")
+    tr_ev = {ev(i) for i in train_idx}
+    tr_stn = {stn(i) for i in train_idx}
+    same_ev = np.mean([ev(i) in tr_ev for i in test_idx])
+    same_stn = np.mean([stn(i) in tr_stn for i in test_idx])
+    print(
+        f"[leakage] grouped by {group_by}: test windows sharing a TRAIN "
+        f"event={same_ev:.1%}  station={same_stn:.1%}"
+    )
 
 
 def main() -> None:
@@ -32,6 +57,18 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--out-dir", type=Path, default=WINDOWS_DIR)
     parser.add_argument("--prefer-split", choices=["train", "test", "all"], default="all")
+    parser.add_argument(
+        "--norm",
+        choices=["zscore", "agc"],
+        default="zscore",
+        help="Per-window normalization: zscore (original) or agc (breaks the amplitude shortcut)",
+    )
+    parser.add_argument(
+        "--group-by",
+        choices=["none", "event", "station"],
+        default="none",
+        help="Leakage-free split: keep all windows of the same event/station in one split",
+    )
     args = parser.parse_args()
     ensure_dirs()
 
@@ -73,16 +110,32 @@ def main() -> None:
         seed=args.seed,
         include_pre_p_noise=True,
         max_per_class=args.max_per_class,
+        norm=args.norm,
     )
-    print(f"[info] windows: {len(y)}  class counts: noise={(y==0).sum()} earthquake={(y==1).sum()}")
+    print(
+        f"[info] windows: {len(y)}  class counts: noise={(y==0).sum()} "
+        f"earthquake={(y==1).sum()}  norm={args.norm}  group_by={args.group_by}"
+    )
 
     idx = np.arange(len(y))
-    train_idx, test_idx = train_test_split(
-        idx, test_size=0.2, random_state=args.seed, stratify=y
-    )
-    train_idx, val_idx = train_test_split(
-        train_idx, test_size=0.15, random_state=args.seed, stratify=y[train_idx]
-    )
+    if args.group_by == "none":
+        train_idx, test_idx = train_test_split(
+            idx, test_size=0.2, random_state=args.seed, stratify=y
+        )
+        train_idx, val_idx = train_test_split(
+            train_idx, test_size=0.15, random_state=args.seed, stratify=y[train_idx]
+        )
+    else:
+        groups = _groups_from_meta(meta, args.group_by)
+        gss1 = GroupShuffleSplit(n_splits=1, test_size=0.2, random_state=args.seed)
+        train_idx, test_idx = next(gss1.split(idx, y, groups))
+        gss2 = GroupShuffleSplit(n_splits=1, test_size=0.15, random_state=args.seed)
+        rel_train, rel_val = next(
+            gss2.split(train_idx, y[train_idx], groups[train_idx])
+        )
+        val_idx = train_idx[rel_val]
+        train_idx = train_idx[rel_train]
+        _report_group_leakage(meta, train_idx, test_idx, args.group_by)
 
     out = args.out_dir
     for name, subset in ("train", train_idx), ("val", val_idx), ("test", test_idx):
@@ -101,6 +154,8 @@ def main() -> None:
             "test": int(len(test_idx)),
         },
         "source": args.source,
+        "norm": args.norm,
+        "group_by": args.group_by,
     }
     (out / "summary.json").write_text(json.dumps(summary, indent=2))
     print(json.dumps(summary, indent=2))

@@ -30,6 +30,43 @@ def _normalize(window: np.ndarray, eps: float = 1e-6) -> np.ndarray:
     return (window - mean) / (std + eps)
 
 
+def _movmean(a: np.ndarray, win: int) -> np.ndarray:
+    """O(T) moving average with edge padding, same length as input."""
+    if win <= 1:
+        return a
+    c = np.cumsum(np.insert(a, 0, 0.0))
+    m = (c[win:] - c[:-win]) / win
+    pad_l = win // 2
+    pad_r = a.shape[0] - m.shape[0] - pad_l
+    return np.pad(m, (pad_l, max(pad_r, 0)), mode="edge")[: a.shape[0]]
+
+
+def agc_normalize(window: np.ndarray, win: int = 100, eps: float = 1e-6) -> np.ndarray:
+    """
+    Automatic Gain Control: divide each sample by the local RMS over a sliding
+    window (~1 s at 100 Hz), then z-score per channel.
+
+    This flattens the amplitude *envelope* — the quiet-lead-in-then-loud-coda
+    contrast that the classifier was exploiting as a shortcut — forcing the model
+    to rely on waveform *shape* (frequency content of the P onset) instead of gross
+    energy. Applied identically at train time and during continuous inference.
+    """
+    out = np.empty_like(window, dtype=np.float32)
+    for c in range(window.shape[0]):
+        local_rms = np.sqrt(_movmean(window[c] ** 2, win) + eps)
+        out[c] = window[c] / (local_rms + eps)
+    mean = out.mean(axis=-1, keepdims=True)
+    std = out.std(axis=-1, keepdims=True)
+    return ((out - mean) / (std + eps)).astype(np.float32)
+
+
+def normalize(window: np.ndarray, mode: str = "zscore") -> np.ndarray:
+    """Dispatch normalization by name: 'zscore' (default) or 'agc'."""
+    if mode == "agc":
+        return agc_normalize(window)
+    return _normalize(window)
+
+
 def _to_channels_first(wave: np.ndarray) -> np.ndarray:
     """STEAD stores (samples, channels); model expects (channels, samples)."""
     if wave.ndim != 2:
@@ -46,6 +83,7 @@ def extract_earthquake_window(
     record: TraceRecord,
     pre_p_samples: int = 200,
     rng: np.random.Generator | None = None,
+    norm: str = "zscore",
 ) -> WindowExample | None:
     """
     Build a 10 s window that includes the P-wave onset.
@@ -72,7 +110,7 @@ def extract_earthquake_window(
     if window.shape[-1] != WINDOW_SAMPLES:
         return None
     return WindowExample(
-        waveform=_normalize(window),
+        waveform=normalize(window, norm),
         label=LABEL_EARTHQUAKE,
         trace_name=record.name,
         start_sample=start,
@@ -83,6 +121,7 @@ def extract_earthquake_window(
 def extract_noise_window(
     record: TraceRecord,
     rng: np.random.Generator,
+    norm: str = "zscore",
 ) -> WindowExample | None:
     wave = record.waveform
     n = wave.shape[0]
@@ -91,7 +130,7 @@ def extract_noise_window(
     start = int(rng.integers(0, n - WINDOW_SAMPLES + 1))
     window = _to_channels_first(wave[start : start + WINDOW_SAMPLES])
     return WindowExample(
-        waveform=_normalize(window),
+        waveform=normalize(window, norm),
         label=LABEL_NOISE,
         trace_name=record.name,
         start_sample=start,
@@ -102,6 +141,7 @@ def extract_pre_p_noise_window(
     record: TraceRecord,
     rng: np.random.Generator,
     margin: int = 50,
+    norm: str = "zscore",
 ) -> WindowExample | None:
     """Optional hard negative: noise taken from before the P arrival on EQ traces."""
     if record.p_arrival is None:
@@ -113,7 +153,7 @@ def extract_pre_p_noise_window(
     start = int(rng.integers(0, max_end - WINDOW_SAMPLES + 1))
     window = _to_channels_first(wave[start : start + WINDOW_SAMPLES])
     return WindowExample(
-        waveform=_normalize(window),
+        waveform=normalize(window, norm),
         label=LABEL_NOISE,
         trace_name=record.name,
         start_sample=start,
@@ -125,12 +165,16 @@ def build_window_arrays(
     seed: int = 42,
     include_pre_p_noise: bool = True,
     max_per_class: int | None = None,
+    norm: str = "zscore",
 ) -> tuple[np.ndarray, np.ndarray, list[dict]]:
     """
     Convert TraceRecords into (X, y, meta).
 
     X shape: (N, 3, WINDOW_SAMPLES)
     y shape: (N,)
+
+    `norm` selects the per-window normalization: "zscore" (original) or "agc"
+    (Automatic Gain Control, which removes the amplitude-envelope shortcut).
     """
     rng = np.random.default_rng(seed)
     examples: list[WindowExample] = []
@@ -139,16 +183,16 @@ def build_window_arrays(
     noise_records = [r for r in records if r.category == "noise"]
 
     for rec in eq_records:
-        ex = extract_earthquake_window(rec, rng=rng)
+        ex = extract_earthquake_window(rec, rng=rng, norm=norm)
         if ex is not None:
             examples.append(ex)
         if include_pre_p_noise:
-            neg = extract_pre_p_noise_window(rec, rng=rng)
+            neg = extract_pre_p_noise_window(rec, rng=rng, norm=norm)
             if neg is not None:
                 examples.append(neg)
 
     for rec in noise_records:
-        ex = extract_noise_window(rec, rng=rng)
+        ex = extract_noise_window(rec, rng=rng, norm=norm)
         if ex is not None:
             examples.append(ex)
 

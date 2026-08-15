@@ -8,7 +8,7 @@ import numpy as np
 import torch
 
 from src.utils import SAMPLE_RATE_HZ, WINDOW_SAMPLES
-from src.windows import _normalize
+from src.windows import _normalize, normalize
 
 
 @dataclass
@@ -112,11 +112,13 @@ def sliding_window_predict(
     sample_rate: float = SAMPLE_RATE_HZ,
     alert_threshold: float = 0.85,
     alert_consecutive: int = 3,
+    norm: str = "zscore",
 ) -> SlidingWindowResult:
     """
     Slide a fixed window across a continuous (channels, samples) array.
 
-    Returns probabilities aligned to the *end* time of each window.
+    Returns probabilities aligned to the *end* time of each window. `norm` must
+    match the normalization the model was trained with ("zscore" or "agc").
     """
     if wave.ndim != 2:
         raise ValueError(f"Expected (C, T) array, got {wave.shape}")
@@ -128,7 +130,7 @@ def sliding_window_predict(
 
     starts = list(range(0, n - window_samples + 1, hop_samples))
     windows = np.stack(
-        [_normalize(wave[:, s : s + window_samples]) for s in starts],
+        [normalize(wave[:, s : s + window_samples], norm) for s in starts],
         axis=0,
     ).astype(np.float32)
 

@@ -42,3 +42,7 @@ lightning_logs/
 
 # Reproducible diagnostic outputs (regenerate via scripts/diagnose_shortcut.py)
 artifacts/analysis/
+
+# Reproducible experiment outputs
+artifacts/baselines/
+artifacts/before_after_summary.json
