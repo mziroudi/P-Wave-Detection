@@ -1,9 +1,10 @@
-# Data (large files)
-data/
+# Data (large files) — only the repo-root data dir, not e.g. docs/assets/data
+/data/
 *.hdf5
 *.h5
 *.csv
 !requirements.txt
+!docs/assets/data/charts.js
 
 # Python
 __pycache__/

@@ -121,6 +121,17 @@
   .quiz .item.done .exp{display:block}
   #score{font-family:var(--mono);font-size:.9rem;color:var(--accent);margin-top:20px;min-height:1.2em}
 
+  /* interactive charts */
+  .chart{width:100%;height:360px}
+  .chartbtns{display:flex;gap:8px;margin:0 0 8px}
+  .cbtn{font-family:var(--mono);font-size:11px;letter-spacing:.04em;border:1px solid var(--rule2);
+    background:var(--paper);color:var(--muted);padding:5px 11px;border-radius:4px;cursor:pointer}
+  .cbtn:hover{border-color:var(--accent);color:var(--ink)}
+  .cbtn.on{color:var(--paper);background:var(--accent);border-color:var(--accent)}
+  .g2c{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:720px){.g2c{grid-template-columns:1fr}}
+  .modebar{display:none!important}
+
   footer{color:var(--faint);font-size:.82rem;font-family:var(--mono);line-height:1.7;
     border-top:1px solid var(--rule);margin-top:60px;padding:26px 0 90px}
   footer a{color:var(--faint)}
@@ -257,8 +268,8 @@
       <h2>The numbers, and how to read them</h2>
       <p>On the balanced test set the demo model reports <span class="datum">97.4%</span> accuracy, a macro-F1 of <span class="datum">0.974</span>, and a ROC-AUC of <span class="datum">0.994</span>. The confusion matrix shows why it looks so clean:</p>
       <figure class="wide">
-        <img src="assets/confusion_matrix.png" alt="Confusion matrix: 593 true noise, 586 true earthquake, 18 and 14 errors" />
-        <figcaption>Rows are truth, columns are prediction. A strong diagonal (593, 586); only 18 false alarms and 14 misses.</figcaption>
+        <div id="c_confusion" class="chart"></div>
+        <figcaption>Confusion matrix (hover for counts). Rows are truth, columns are prediction — a strong diagonal (593, 586); only 18 false alarms and 14 misses.</figcaption>
       </figure>
       <p>Read those metrics precisely: <strong>precision</strong> punishes false alarms, <strong>recall</strong> punishes misses, <strong>F1</strong> balances the two, and <strong>ROC-AUC</strong> is the chance the model ranks a random earthquake above a random noise clip. All of them, here, are measured on a tidy fifty-fifty test set.</p>
       <figure class="wide">
@@ -273,8 +284,8 @@
       <h2>Not just whether, but when</h2>
       <p>Pinpointing the P-arrival inside the window matters for estimating warning time and magnitude. The regressor predicts a sample index; error is read in milliseconds. It reaches roughly <span class="datum">23 samples</span> of mean absolute error — about <strong>233 ms</strong>.</p>
       <figure class="wide">
-        <img src="assets/p_arrival_regression.png" alt="Predicted versus true P offset scatter, and an error histogram" />
-        <figcaption>Left, predictions against truth (near the diagonal is accurate); right, errors clustered near zero. State-of-the-art pickers reach under 50 ms, so this is a fair baseline — not a finished product.</figcaption>
+        <div id="c_regression" class="chart"></div>
+        <figcaption>Predicted vs. true P offset (hover any point; drag to zoom). Points near the diagonal are accurate. State-of-the-art pickers reach under 50 ms, so this is a fair baseline — not a finished product.</figcaption>
       </figure>
     </section>
 
@@ -319,11 +330,19 @@
           <tr><td>SeismicCNN1D</td><td class="datum">97.4%</td><td class="datum">0.994</td></tr>
         </tbody>
       </table>
-      <figure class="wide"><img src="assets/shortcut_baseline.png" alt="One amplitude feature separates the classes; its ROC nearly matches the CNN" /><figcaption>A hand-coded amplitude feature separates the classes almost as well as the whole network.</figcaption></figure>
+      <figure class="wide">
+        <div class="chartbtns" id="shortcutToggle">
+          <button class="cbtn on" data-norm="zscore">z-score (shortcut present)</button>
+          <button class="cbtn" data-norm="agc">AGC (shortcut removed)</button>
+        </div>
+        <div id="c_shortcut" class="chart"></div>
+        <figcaption>Distribution of the trivial feature — amplitude of the first 1.5 s of the window — for each class. Toggle to AGC and watch the two distributions collapse onto each other: the shortcut disappears (separability AUC 0.986 → 0.613).</figcaption>
+      </figure>
+      <figure class="wide"><div id="c_roc" class="chart"></div><figcaption>ROC on the balanced test set (hover for the operating point). The hand-coded amplitude features track the full CNN almost exactly.</figcaption></figure>
 
       <h3>The reckoning on real data</h3>
       <p>On the ten quiet minutes <em>before</em> the Ridgecrest M7.1 even happens, the model calls the silence "earthquake" more than half the time — a mean probability of <span class="datum">0.54</span> and roughly <strong>1,440 false alarms per hour</strong> at threshold 0.85. Its first "alert" fires about ten minutes before the quake exists.</p>
-      <figure class="wide"><img src="assets/continuous_false_alarms.png" alt="Probability oscillates near one across the quiet pre-event window" /><figcaption>Blue marks the quiet pre-event window. The probability spikes throughout it: the balanced 97% does not survive contact with a stream that is 99%+ noise.</figcaption></figure>
+      <figure class="wide"><div id="c_continuous" class="chart" style="height:400px"></div><figcaption>Earthquake probability across the real Ridgecrest hour — drag to zoom, toggle traces in the legend. The shaded band is the quiet pre-event window (no earthquake). Both the original and the shortcut-fixed (AGC) models spike throughout it.</figcaption></figure>
       <figure class="wide"><img src="assets/failure_cases.png" alt="False alarms are noise with a late burst; misses are earthquakes with uniform energy" /><figcaption>False alarms are noise that happens to swell late; misses are earthquakes with even energy — exactly what an envelope detector gets wrong.</figcaption></figure>
 
       <h3>And a quieter bug</h3>
@@ -332,7 +351,10 @@
       <h3>Then the fixes — and the twist</h3>
       <p>Diagnosis is cheap; the honest part is what happens when you actually fix it. Two culprits were addressed and measured. An <strong>event-grouped split</strong> (no earthquake shared across train and test) moved accuracy only 97.4% → 96.9% — leakage was real but minor. Swapping z-scoring for <strong>AGC</strong> (automatic gain control, which flattens the amplitude envelope) genuinely killed the shortcut: the trivial early-amplitude feature collapsed from <span class="datum">0.986</span> to <span class="datum">0.613</span> AUC, the two classes ended with equal early-window energy, and honest accuracy settled at 95.0%. The model could no longer cheat.</p>
       <p>Then the reckoning returned. The shortcut-free model still fired <strong>~1,500 false alarms/hour</strong> on quiet continuous data — while a decades-old <strong>STA/LTA</strong> trigger managed <strong>~126/hour</strong> and still caught the M7.1.</p>
-      <figure class="wide"><img src="assets/before_after_comparison.png" alt="Before/after: false alarms and balanced accuracy across model variants, with STA/LTA baseline" /><figcaption>Fixing the diagnosed shortcut lowered balanced accuracy toward honesty but did <em>not</em> reduce continuous false alarms. Classical STA/LTA beats every CNN variant by ~12×.</figcaption></figure>
+      <figure class="wide">
+        <div class="g2c"><div id="c_fa" class="chart"></div><div id="c_acc" class="chart"></div></div>
+        <figcaption>Left (log scale): continuous false alarms — every CNN variant sits ~10× above classical STA/LTA. Right: balanced accuracy barely moves. Fixing the diagnosed shortcut lowered accuracy toward honesty but did <em>not</em> reduce false alarms. Hover for exact values.</figcaption>
+      </figure>
       <table>
         <thead><tr><th>Detector</th><th>Balanced acc</th><th>Shortcut AUC</th><th>False alarms/hr</th></tr></thead>
         <tbody>
@@ -414,6 +436,8 @@ python scripts/evaluate_baselines.py --checkpoint models/cnn_grouped_agc_best.pt
   </main>
 </div>
 
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<script src="assets/data/charts.js"></script>
 <script>
 /* progress bar */
 const bar=document.getElementById('bar');
@@ -466,6 +490,109 @@ Q.forEach((it,qi)=>{
   const ex=document.createElement('p');ex.className='exp';ex.textContent=it.e;box.appendChild(ex);
   quiz.appendChild(box);
 });
+
+/* ---------- interactive charts (Plotly) ---------- */
+(function(){
+  if(!window.Plotly || !window.PWDATA) return;
+  const dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const C = {
+    ink: dark?'#e9e5da':'#16150f', muted: dark?'#a29d90':'#6b675c',
+    grid: dark?'#2a2820':'#e6e2d8', paper:'rgba(0,0,0,0)',
+    accent: dark?'#d98b82':'#8a2f27', noise:'#2563eb', eq: dark?'#e0796f':'#c0392b', teal:'#0f766e'
+  };
+  const FONT={family:'"Iowan Old Style",Palatino,Georgia,serif',color:C.ink,size:13};
+  const CONF={displayModeBar:false,responsive:true};
+  const $=id=>document.getElementById(id);
+  const ax=extra=>Object.assign({gridcolor:C.grid,zerolinecolor:C.grid,linecolor:C.grid,
+    tickfont:{size:11,color:C.muted},titlefont:{size:12,color:C.muted}},extra||{});
+  function layout(extra){
+    return Object.assign({paper_bgcolor:C.paper,plot_bgcolor:C.paper,font:FONT,
+      margin:{l:52,r:16,t:10,b:44},showlegend:false,xaxis:ax(),yaxis:ax(),
+      hoverlabel:{font:{family:FONT.family}}},extra||{});
+  }
+  const D=window.PWDATA;
+
+  if($('c_confusion')){
+    const z=D.confusion.z,lab=D.confusion.labels,ann=[];
+    for(let i=0;i<2;i++)for(let j=0;j<2;j++)ann.push({x:lab[j],y:lab[i],text:String(z[i][j]),
+      showarrow:false,font:{size:20,color:(z[i][j]>200?'#fff':C.ink)}});
+    Plotly.newPlot('c_confusion',[{type:'heatmap',z:z,x:lab,y:lab,showscale:false,
+      colorscale:[[0,dark?'#1b1a13':'#f4efe3'],[1,C.accent]],
+      hovertemplate:'true=%{y}<br>pred=%{x}<br>count=%{z}<extra></extra>'}],
+      layout({annotations:ann,margin:{l:96,r:16,t:10,b:46},
+        xaxis:ax({title:'Predicted',tickfont:{size:12,color:C.ink}}),
+        yaxis:ax({title:'True',autorange:'reversed',tickfont:{size:12,color:C.ink}})}),CONF);
+  }
+
+  if($('c_roc')){
+    const r=D.roc,L=(o,c,w,n)=>({x:o.fpr,y:o.tpr,mode:'lines',name:n,line:{color:c,width:w},
+      hovertemplate:'FPR %{x:.2f}<br>TPR %{y:.2f}<extra></extra>'});
+    Plotly.newPlot('c_roc',[
+      L(r.cnn,C.ink,2.4,'CNN (AUC '+r.cnn.auc+')'),
+      L(r.envelope_lr,C.accent,2,'envelope LR (AUC '+r.envelope_lr.auc+')'),
+      L(r.early_std,C.noise,1.6,'early_std only (AUC '+r.early_std.auc+')'),
+      {x:[0,1],y:[0,1],mode:'lines',line:{color:C.muted,width:1,dash:'dash'},hoverinfo:'skip',showlegend:false}
+    ],layout({showlegend:true,legend:{x:.98,y:.05,xanchor:'right',yanchor:'bottom',font:{size:11}},
+      xaxis:ax({title:'false positive rate',range:[0,1]}),
+      yaxis:ax({title:'true positive rate',range:[0,1.02]})}),CONF);
+  }
+
+  if($('c_shortcut')){
+    const H=D.shortcut_hist,cx=H.bin_centers;
+    function draw(mode){
+      const m=H.modes[mode];
+      Plotly.react('c_shortcut',[
+        {type:'bar',x:cx,y:m.noise,name:'noise',marker:{color:C.noise,opacity:.6},hovertemplate:'noise<br>early_std %{x:.2f}<br>%{y}<extra></extra>'},
+        {type:'bar',x:cx,y:m.earthquake,name:'earthquake',marker:{color:C.eq,opacity:.6},hovertemplate:'earthquake<br>early_std %{x:.2f}<br>%{y}<extra></extra>'}
+      ],layout({barmode:'overlay',showlegend:true,legend:{x:.98,y:.98,xanchor:'right',yanchor:'top',font:{size:11}},
+        annotations:[{x:.98,y:.80,xref:'paper',yref:'paper',showarrow:false,text:'separability AUC = '+m.auc,font:{size:12,color:C.accent}}],
+        xaxis:ax({title:'amplitude std of first 1.5 s (normalized)'}),yaxis:ax({title:'count'})}),CONF);
+    }
+    draw('zscore');
+    document.querySelectorAll('#shortcutToggle .cbtn').forEach(b=>{b.onclick=()=>{
+      document.querySelectorAll('#shortcutToggle .cbtn').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on');draw(b.dataset.norm);};});
+  }
+
+  if($('c_fa')){
+    const B=D.before_after;
+    Plotly.newPlot('c_fa',[{type:'bar',x:B.labels,y:B.false_alarms,
+      marker:{color:[C.accent,C.accent,C.accent,C.teal]},text:B.false_alarms.map(String),textposition:'outside',
+      hovertemplate:'%{x}<br>%{y} false alarms/hr<extra></extra>'}],
+      layout({yaxis:ax({title:'false alarms/hr (log)',type:'log'}),xaxis:ax({tickfont:{size:9,color:C.muted}}),margin:{l:56,r:12,t:22,b:54}}),CONF);
+  }
+  if($('c_acc')){
+    const B=D.before_after;
+    Plotly.newPlot('c_acc',[{type:'bar',x:B.accuracy_labels,y:B.accuracy,marker:{color:C.noise},
+      text:B.accuracy.map(v=>v+'%'),textposition:'outside',hovertemplate:'%{x}<br>%{y}% balanced acc<extra></extra>'}],
+      layout({yaxis:ax({title:'balanced accuracy (%)',range:[90,100]}),xaxis:ax({tickfont:{size:10,color:C.muted}}),margin:{l:52,r:12,t:22,b:54}}),CONF);
+  }
+
+  if($('c_continuous')){
+    const K=D.continuous,s=K.series;
+    Plotly.newPlot('c_continuous',[
+      {x:s.before.t,y:s.before.p,mode:'lines',name:'original (z-score)',line:{color:C.accent,width:1}},
+      {x:s.agc.t,y:s.agc.p,mode:'lines',name:'shortcut-fixed (AGC)',line:{color:C.noise,width:1}}
+    ],layout({showlegend:true,legend:{x:.5,y:1.14,xanchor:'center',orientation:'h',font:{size:11}},
+      margin:{l:52,r:16,t:38,b:44},
+      shapes:[
+        {type:'rect',xref:'x',yref:'paper',x0:0,x1:K.origin_min,y0:0,y1:1,fillcolor:C.noise,opacity:.08,line:{width:0}},
+        {type:'line',xref:'x',yref:'y',x0:K.origin_min,x1:K.origin_min,y0:0,y1:1,line:{color:C.eq,width:1.2,dash:'dash'}},
+        {type:'line',xref:'paper',yref:'y',x0:0,x1:1,y0:.85,y1:.85,line:{color:C.muted,width:1,dash:'dot'}}
+      ],
+      annotations:[{x:K.origin_min/2,y:1.0,text:'quiet (no earthquake)',showarrow:false,font:{size:10,color:C.muted}}],
+      xaxis:ax({title:'time from stream start (min)'}),yaxis:ax({title:'P(earthquake)',range:[-.02,1.02]})}),CONF);
+  }
+
+  if($('c_regression')){
+    const R=D.regression,mx=Math.max.apply(null,R.true.concat(R.pred));
+    Plotly.newPlot('c_regression',[
+      {x:R.true,y:R.pred,mode:'markers',marker:{color:C.noise,size:6,opacity:.45},name:'windows',hovertemplate:'true %{x} smp<br>pred %{y} smp<extra></extra>'},
+      {x:[0,mx],y:[0,mx],mode:'lines',line:{color:C.muted,width:1,dash:'dash'},hoverinfo:'skip'}
+    ],layout({annotations:[{x:.03,y:.97,xref:'paper',yref:'paper',showarrow:false,align:'left',text:'MAE = '+R.mae_ms+' ms',font:{size:12,color:C.accent}}],
+      xaxis:ax({title:'true P offset (samples)'}),yaxis:ax({title:'predicted P offset (samples)'})}),CONF);
+  }
+})();
 </script>
 </body>
 </html>
